@@ -96,19 +96,101 @@ export function collect(container, state) {
   return { config, secrets };
 }
 
-// Saves settings, waits for the server to re-fork, then reloads.
-export async function saveAndRestart(payload, onStatus) {
-  onStatus?.("Saving & restarting…");
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+export async function postSettings(payload) {
   await fetch("/api/settings", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
+}
+
+// Resolves once the re-forked server is answering again.
+export async function waitForServer() {
   for (let i = 0; i < 60; i++) {
     try {
-      if ((await fetch("/api/plugins", { cache: "no-store" })).ok) break;
+      if ((await fetch("/api/plugins", { cache: "no-store" })).ok) return true;
     } catch {}
-    await new Promise((r) => setTimeout(r, 500));
+    await sleep(500);
   }
+  return false;
+}
+
+// Saves settings, waits for the server to re-fork, then reloads.
+export async function saveAndRestart(payload, onStatus) {
+  onStatus?.("Saving & restarting…");
+  await postSettings(payload);
+  await waitForServer();
   location.reload();
+}
+
+// The calendar API returns 200 only once Google auth has completed.
+async function googleConnected() {
+  try {
+    return (await fetch("/api/events", { cache: "no-store" })).status === 200;
+  } catch {
+    return false;
+  }
+}
+
+// Full "Connect Google" flow, usable from the walkthrough or Settings:
+// 1. if the user typed fresh creds, save them — this re-forks the server so the
+//    calendar's /auth/google routes actually register
+// 2. open Google sign-in (the embedded server catches the localhost callback)
+// 3. poll until the calendar API authenticates, then optionally reload
+async function connectGoogle(card, state, { reloadOnDone }, onStatus) {
+  const id = card?.querySelector('[data-secret="GOOGLE_CLIENT_ID"]')?.value.trim();
+  const secret = card?.querySelector('[data-secret="GOOGLE_CLIENT_SECRET"]')?.value.trim();
+  const hasNew = id && secret;
+
+  if (!hasNew && !state.secretsSet.GOOGLE_CLIENT_ID) {
+    onStatus("Enter your Google Client ID and Secret above first.");
+    return;
+  }
+  if (hasNew) {
+    onStatus("Saving keys & restarting…");
+    await postSettings({ secrets: { GOOGLE_CLIENT_ID: id, GOOGLE_CLIENT_SECRET: secret } });
+    await waitForServer();
+    state.secretsSet.GOOGLE_CLIENT_ID = true;
+    state.secretsSet.GOOGLE_CLIENT_SECRET = true;
+  }
+
+  onStatus("Opening Google sign-in…");
+  const popup = window.open("/auth/google", "_blank", "width=520,height=720");
+
+  onStatus("Waiting for you to approve in Google…");
+  for (let i = 0; i < 45; i++) {
+    if (await googleConnected()) {
+      onStatus("✓ Connected to Google");
+      try {
+        popup && popup.close();
+      } catch {}
+      if (reloadOnDone) setTimeout(() => location.reload(), 900);
+      return;
+    }
+    await sleep(1500);
+  }
+  onStatus("Didn't detect a connection yet — finish in Google, then click again.");
+}
+
+// Returns [button, statusLine] wired to the connect flow. The plugin card is
+// resolved at click time so it picks up freshly-typed credentials.
+export function googleConnectControl(plugin, state, opts = {}) {
+  const status = el("small", { class: "set-connect-status" }, "");
+  const btn = el(
+    "button",
+    {
+      class: "set-connect",
+      onclick: (e) =>
+        connectGoogle(
+          e.target.closest(".set-plugin, .ob-card"),
+          state,
+          opts,
+          (m) => (status.textContent = m)
+        ),
+    },
+    plugin.connect.label
+  );
+  return [btn, status];
 }

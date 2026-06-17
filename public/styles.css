@@ -633,6 +633,7 @@ main {
   padding: 0.45rem 0.9rem; border-radius: var(--radius-sm); cursor: pointer; font-size: 0.82rem;
 }
 .set-connect:disabled { opacity: 0.4; cursor: not-allowed; }
+.set-connect-status { font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; }
 .set-save {
   background: var(--accent); color: #fff; border: none;
   padding: 0.55rem 1.2rem; border-radius: var(--radius-sm); cursor: pointer; font-weight: 600;

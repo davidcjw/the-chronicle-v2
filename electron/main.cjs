@@ -15,6 +15,10 @@ let serverPort = 3737;
 // Persist settings + tokens in the per-user app data dir, not inside the bundle.
 process.env.CHRONICLE_DATA_DIR = app.getPath("userData");
 
+// Google blocks OAuth in user-agents it recognises as embedded webviews. Strip the
+// "Electron" token so the in-app sign-in window presents as plain Chrome.
+app.userAgentFallback = app.userAgentFallback.replace(/ Electron\/[\d.]+/, "");
+
 function startServer() {
   return new Promise((resolve) => {
     child = fork(SERVER, {
@@ -68,13 +72,14 @@ function createWindow() {
     return { action: "deny" };
   });
 
-  // When an OAuth popup lands back on the dashboard root, the flow is done: close it
-  // and refresh the main window so the newly-connected widget appears.
+  // When an OAuth popup lands back on the dashboard root, the flow is done: just
+  // close it. The renderer detects the connection by polling and refreshes itself,
+  // so we must NOT reload the main window here — that would wipe an in-progress
+  // walkthrough.
   mainWindow.webContents.on("did-create-window", (popup) => {
     popup.webContents.on("did-navigate", (_e, navUrl) => {
       if (navUrl === appURL() || navUrl === appURL().slice(0, -1)) {
         popup.close();
-        mainWindow.loadURL(appURL());
       }
     });
   });

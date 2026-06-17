@@ -1,7 +1,7 @@
 // First-run walkthrough. Shows once (until `onboarded` is set), framing the app
 // and letting the user pick widgets + paste any keys before they ever see the
 // gear menu. Reuses the shared form logic from settingsForm.js.
-import { el, pluginFields, collect, saveAndRestart } from "./settingsForm.js";
+import { el, pluginFields, collect, saveAndRestart, googleConnectControl } from "./settingsForm.js";
 
 let state = null;
 let wrap = null;
@@ -22,7 +22,8 @@ function card(p) {
   check.checked = wanted;
 
   const needsKey = p.secrets.length > 0;
-  const body = el("div", { class: "ob-card-body" }, pluginFields(p, state));
+  const connectEls = p.connect ? googleConnectControl(p, state, { reloadOnDone: false }) : [];
+  const body = el("div", { class: "ob-card-body" }, [...pluginFields(p, state), ...connectEls]);
 
   const section = el("div", { class: `ob-card${wanted ? " open" : ""}` }, [
     el("label", { class: "ob-card-head" }, [

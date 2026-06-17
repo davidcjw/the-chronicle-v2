@@ -1,7 +1,7 @@
 // Settings drawer — lets users pick widgets, fill in config, paste secrets, and
 // connect accounts without touching files. Renders generically from the schema
 // returned by /api/settings. Shared form logic lives in settingsForm.js.
-import { el, pluginFields, collect, saveAndRestart } from "./settingsForm.js";
+import { el, pluginFields, collect, saveAndRestart, googleConnectControl } from "./settingsForm.js";
 import { openOnboarding } from "./onboarding.js";
 
 let state = null; // { schema, config, secretsSet, plugins }
@@ -14,19 +14,7 @@ function pluginSection(p) {
   const toggle = el("input", { type: "checkbox", "data-toggle": p.id });
   toggle.checked = active;
 
-  const secretsReady = (p.connect?.requires || []).every((k) => state.secretsSet[k]);
-  const connectBtn = p.connect
-    ? el(
-        "button",
-        {
-          class: "set-connect",
-          disabled: secretsReady ? null : "true",
-          title: secretsReady ? "" : "Fill in the keys above and save first",
-          onclick: () => window.open(p.connect.url, "_blank"),
-        },
-        p.connect.label
-      )
-    : null;
+  const connectEls = p.connect ? googleConnectControl(p, state, { reloadOnDone: true }) : [];
 
   return el("section", { class: "set-plugin" }, [
     el("div", { class: "set-plugin-head" }, [
@@ -36,7 +24,7 @@ function pluginSection(p) {
         el("p", { class: "set-blurb" }, p.blurb || ""),
       ]),
     ]),
-    el("div", { class: "set-plugin-body" }, [...pluginFields(p, state), connectBtn]),
+    el("div", { class: "set-plugin-body" }, [...pluginFields(p, state), ...connectEls]),
   ]);
 }
 
