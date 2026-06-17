@@ -22,6 +22,8 @@ export function getSettingsPath() {
 // Defaults mirror v1's dashboard.config.js so a fresh install behaves identically.
 export const DEFAULT_SETTINGS = {
   port: 3737,
+  // Flipped to true once the user finishes (or skips) the first-run walkthrough.
+  onboarded: false,
   config: {
     news: {
       topics: ["artificial intelligence", "machine learning", "LLM", "OpenAI"],

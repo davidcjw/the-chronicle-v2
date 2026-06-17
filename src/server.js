@@ -68,6 +68,7 @@ app.get("/api/settings", (req, res) => {
     config: s.config,
     secretsSet,
     plugins: allPlugins,
+    onboarded: s.onboarded,
   });
 });
 
@@ -84,6 +85,7 @@ app.post("/api/settings", (req, res) => {
     }
     saveSettings({
       ...current,
+      onboarded: body.onboarded ?? current.onboarded,
       config: { ...current.config, ...(body.config || {}) },
       secrets,
     });
