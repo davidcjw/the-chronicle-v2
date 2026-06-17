@@ -11,6 +11,7 @@ const SERVER = path.join(__dirname, "..", "src", "server.js");
 let mainWindow = null;
 let child = null;
 let serverPort = 3737;
+let authPending = false; // set when an OAuth flow was sent to the external browser
 
 // Persist settings + tokens in the per-user app data dir, not inside the bundle.
 process.env.CHRONICLE_DATA_DIR = app.getPath("userData");
@@ -58,30 +59,40 @@ function createWindow() {
   });
   mainWindow.loadURL(appURL());
 
-  // OAuth "Connect" buttons call window.open('/auth/google'). Open those as a child
-  // window (the localhost callback completes inside it); send anything else to the
-  // user's real browser.
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith(`http://localhost:${serverPort}`)) {
-      return {
-        action: "allow",
-        overrideBrowserWindowOptions: { width: 520, height: 700, title: "Connect account" },
-      };
-    }
+  // Google (and most providers) refuse OAuth inside embedded windows, so consent
+  // MUST happen in the user's real browser. The embedded server still catches the
+  // localhost callback regardless of which browser completed sign-in. We flag the
+  // pending auth so we can refresh the dashboard when the user returns to the app.
+  const startExternalAuth = (url) => {
+    authPending = true;
     shell.openExternal(url);
+  };
+
+  // window.open('/auth/google') from the Settings / walkthrough "Connect" button.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    startExternalAuth(url);
     return { action: "deny" };
   });
 
-  // When an OAuth popup lands back on the dashboard root, the flow is done: just
-  // close it. The renderer detects the connection by polling and refreshes itself,
-  // so we must NOT reload the main window here — that would wipe an in-progress
-  // walkthrough.
-  mainWindow.webContents.on("did-create-window", (popup) => {
-    popup.webContents.on("did-navigate", (_e, navUrl) => {
-      if (navUrl === appURL() || navUrl === appURL().slice(0, -1)) {
-        popup.close();
-      }
-    });
+  // The calendar widget's "Connect →" is a plain <a href="/auth/google"> that would
+  // otherwise navigate the dashboard away. Intercept and send it to the browser too.
+  mainWindow.webContents.on("will-navigate", (e, url) => {
+    if (url.startsWith(`http://localhost:${serverPort}/auth/`)) {
+      e.preventDefault();
+      startExternalAuth(url);
+    }
+  });
+
+  // When the user comes back from the browser after approving, refresh so the newly
+  // connected widget loads — unless the first-run walkthrough is open (reloading
+  // would wipe it; that path detects the connection by polling instead).
+  mainWindow.on("focus", async () => {
+    if (!authPending) return;
+    authPending = false;
+    const inWalkthrough = await mainWindow.webContents
+      .executeJavaScript("!!document.getElementById('ob-overlay')")
+      .catch(() => false);
+    if (!inWalkthrough) mainWindow.loadURL(appURL());
   });
 }
 

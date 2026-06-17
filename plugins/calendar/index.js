@@ -62,7 +62,9 @@ async function handleCallback(req, res) {
   const { tokens } = await client.getToken(req.query.code);
   client.setCredentials(tokens);
   fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens));
-  res.redirect("/");
+  // Land on a friendly success page (consent happens in the user's real browser,
+  // so we must not dump them onto the full dashboard in a stray browser tab).
+  res.redirect("/auth-success.html");
 }
 
 async function getEvents(req, res) {
