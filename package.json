@@ -2,6 +2,7 @@
   "name": "the-chronicle-v2",
   "version": "0.1.0",
   "description": "The Chronicle — a personal dashboard, packaged as a one-click desktop app with an in-app Settings UI and guided account connections.",
+  "author": "David <davidcjw@gmail.com>",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -27,7 +28,8 @@
     "asarUnpack": ["plugins/apple-reminders/**"],
     "mac": {
       "category": "public.app-category.productivity",
-      "target": ["dmg"]
+      "target": ["dmg"],
+      "identity": null
     }
   }
 }

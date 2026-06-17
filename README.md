@@ -55,8 +55,32 @@ npm start             # launches the Electron window
 npm run dist          # → dist/The Chronicle-0.1.0.dmg
 ```
 
-For a Gatekeeper-friendly install (no "unidentified developer" warning) you'll need
-an Apple Developer account ($99/yr) and code-signing + notarization config.
+The build is **unsigned** (`mac.identity: null` in `package.json`) — no Apple
+Developer account needed. The tradeoff: macOS Gatekeeper will warn on first launch.
+
+### First launch on an unsigned app (tell your users this once)
+
+After dragging the app to Applications, the **first** time they open it:
+
+1. **Right-click** (or Control-click) the app → **Open**
+2. In the dialog, click **Open** again
+
+macOS remembers the choice — every launch after that is a normal double-click.
+(A plain double-click on the first try just shows a "can't be opened" dialog with no
+Open button, which is why the right-click step matters.)
+
+If macOS still blocks it (newer versions are stricter), they can clear the
+quarantine flag once:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/The Chronicle.app"
+```
+
+### Going warning-free later
+
+When you're ready to remove the friction entirely, it's a config-only change: an
+Apple Developer account ($99/yr) plus signing + notarization settings in the
+`mac` build block. Nothing else about the app changes.
 
 ## Onboarding notes (the honest part)
 
