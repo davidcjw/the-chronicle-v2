@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="36%" r="78%">
+      <stop offset="0%"  stop-color="#7A3617"/>
+      <stop offset="55%" stop-color="#45200E"/>
+      <stop offset="100%" stop-color="#220C04"/>
+    </radialGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="20" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Squircle background -->
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+  <rect x="24" y="24" width="976" height="976" rx="200" fill="none" stroke="#D4AF37" stroke-width="8" opacity="0.22"/>
+
+  <!-- Book shadow -->
+  <rect x="326" y="234" width="424" height="600" rx="46" fill="#00000044"/>
+  <!-- Book cover -->
+  <rect x="300" y="210" width="424" height="600" rx="46" fill="#4A1C0A"/>
+  <!-- Spine (darker) -->
+  <rect x="300" y="210" width="132" height="600" rx="46" fill="#2C0F05"/>
+  <rect x="400" y="210" width="40" height="600" fill="#2C0F05"/>
+
+  <!-- Parchment pages -->
+  <rect x="452" y="230" width="256" height="560" rx="14" fill="#EDD9A0"/>
+  <!-- Faint page lines -->
+  <rect x="486" y="320" width="190" height="14" rx="6" fill="#C4A870" opacity="0.6"/>
+  <rect x="486" y="400" width="190" height="14" rx="6" fill="#C4A870" opacity="0.6"/>
+  <rect x="486" y="620" width="190" height="14" rx="6" fill="#C4A870" opacity="0.6"/>
+  <rect x="486" y="700" width="190" height="14" rx="6" fill="#C4A870" opacity="0.6"/>
+  <!-- Gold page border -->
+  <rect x="472" y="270" width="216" height="470" rx="10" fill="none" stroke="#B8860B" stroke-width="8" opacity="0.8"/>
+
+  <!-- OSRS-style rune -->
+  <polygon points="580,360 700,510 580,660 460,510" fill="none" stroke="#D4AF37" stroke-width="16" stroke-linejoin="round"/>
+  <polygon points="580,402 658,510 580,618 502,510" fill="#D4AF37" opacity="0.16"/>
+
+  <!-- Centre gem with glow -->
+  <g filter="url(#glow)">
+    <circle cx="580" cy="510" r="46" fill="#FFD700"/>
+    <circle cx="580" cy="510" r="22" fill="#FFF4B0"/>
+  </g>
+
+  <!-- Spine gold rivets -->
+  <rect x="336" y="300" width="46" height="26" rx="13" fill="#D4AF37" opacity="0.9"/>
+  <rect x="336" y="694" width="46" height="26" rx="13" fill="#D4AF37" opacity="0.9"/>
+</svg>
