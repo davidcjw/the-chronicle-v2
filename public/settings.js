@@ -2,6 +2,7 @@
 // connect accounts without touching files. Renders generically from the schema
 // returned by /api/settings. Shared form logic lives in settingsForm.js.
 import { el, pluginFields, collect, saveAndRestart } from "./settingsForm.js";
+import { openOnboarding } from "./onboarding.js";
 
 let state = null; // { schema, config, secretsSet, plugins }
 
@@ -48,6 +49,11 @@ function buildDrawer() {
     ]),
     body,
     el("footer", { class: "set-foot" }, [
+      el(
+        "button",
+        { class: "set-rerun", onclick: () => { close(); openOnboarding(); } },
+        "↺ Run setup again"
+      ),
       el("span", { id: "set-status" }, ""),
       el(
         "button",

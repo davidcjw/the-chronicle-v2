@@ -82,19 +82,34 @@ function renderSetup() {
   );
 }
 
-async function start() {
-  try {
-    state = await fetch("/api/settings").then((r) => r.json());
-  } catch {
-    return; // server not ready / offline — skip the walkthrough rather than block
-  }
-  if (state.onboarded) return;
-
+function launch(s) {
+  if (document.getElementById("ob-overlay")) return; // already open
+  state = s;
   const overlay = el("div", { id: "ob-overlay" });
   wrap = el("div", { class: "ob-wrap" });
   overlay.append(wrap);
   document.body.append(overlay);
   renderWelcome();
+}
+
+// Re-run the walkthrough on demand (e.g. from Settings) without a server restart.
+export async function openOnboarding() {
+  try {
+    launch(await fetch("/api/settings").then((r) => r.json()));
+  } catch {
+    /* server not ready — ignore */
+  }
+}
+
+// First-run auto-trigger: only show until the user has been onboarded once.
+async function start() {
+  let s;
+  try {
+    s = await fetch("/api/settings").then((r) => r.json());
+  } catch {
+    return; // server not ready / offline — skip rather than block
+  }
+  if (!s.onboarded) launch(s);
 }
 
 start();
