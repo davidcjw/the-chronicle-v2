@@ -17,6 +17,13 @@ export const SETTINGS_SCHEMA = [
     ],
   },
   {
+    id: "kanban",
+    label: "Kanban Board",
+    blurb: "A drag-and-drop board with your own columns. No account needed — define columns and cards right on the board.",
+    secrets: [],
+    config: [],
+  },
+  {
     id: "apple-reminders",
     label: "Apple Reminders",
     macOnly: true,
