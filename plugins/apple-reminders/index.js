@@ -10,7 +10,12 @@ const allowedLists = cfg.lists ?? [];
 const defaultList = cfg.defaultList ?? null;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CLI = path.resolve(__dirname, "reminders-cli");
+// In a packaged Electron app the plugin lives inside app.asar (a file, not a
+// directory), so the binary can't be exec'd from there — electron-builder unpacks
+// it to app.asar.unpacked. Redirect to that copy; no-op in dev (no asar in path).
+const CLI = path
+  .resolve(__dirname, "reminders-cli")
+  .replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`);
 
 const execFileAsync = promisify(execFile);
 
