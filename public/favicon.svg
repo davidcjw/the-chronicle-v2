@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Book shadow -->
+  <rect x="5" y="4" width="22" height="27" rx="3" fill="#00000033"/>
+  <!-- Book cover -->
+  <rect x="3" y="2" width="22" height="27" rx="3" fill="#4A1C0A"/>
+  <!-- Spine (darker) -->
+  <rect x="3" y="2" width="7" height="27" rx="3" fill="#2C0F05"/>
+  <rect x="7" y="2" width="3" height="27" fill="#2C0F05"/>
+  <!-- Parchment pages -->
+  <rect x="9" y="3" width="15" height="25" rx="1.5" fill="#EDD9A0"/>
+  <!-- Faint page lines -->
+  <rect x="11" y="9"  width="11" height="0.7" rx="0.3" fill="#C4A870" opacity="0.7"/>
+  <rect x="11" y="13" width="11" height="0.7" rx="0.3" fill="#C4A870" opacity="0.7"/>
+  <rect x="11" y="17" width="11" height="0.7" rx="0.3" fill="#C4A870" opacity="0.7"/>
+  <rect x="11" y="21" width="11" height="0.7" rx="0.3" fill="#C4A870" opacity="0.7"/>
+  <!-- Gold page border -->
+  <rect x="10" y="5" width="13" height="21" rx="1" fill="none" stroke="#B8860B" stroke-width="0.9" opacity="0.8"/>
+  <!-- OSRS-style outer diamond rune -->
+  <polygon points="16.5,8.5 21.5,15.5 16.5,22.5 11.5,15.5" fill="none" stroke="#D4AF37" stroke-width="1.6"/>
+  <!-- Inner diamond fill (faint) -->
+  <polygon points="16.5,10.5 20,15.5 16.5,20.5 13,15.5" fill="#D4AF3722"/>
+  <!-- Centre gem -->
+  <circle cx="16.5" cy="15.5" r="2.4" fill="#FFD700"/>
+  <circle cx="16.5" cy="15.5" r="1.2" fill="#FFF4B0"/>
+  <!-- Spine gold rivets -->
+  <rect x="4.2" y="6.5"  width="2.2" height="1.2" rx="0.6" fill="#D4AF37" opacity="0.9"/>
+  <rect x="4.2" y="23.5" width="2.2" height="1.2" rx="0.6" fill="#D4AF37" opacity="0.9"/>
+</svg>
