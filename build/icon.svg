@@ -14,9 +14,9 @@
     </filter>
   </defs>
 
-  <!-- Squircle background -->
-  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
-  <rect x="24" y="24" width="976" height="976" rx="200" fill="none" stroke="#D4AF37" stroke-width="8" opacity="0.22"/>
+  <!-- Full-square background: macOS applies its own icon mask/shape, so we must
+       NOT round the corners ourselves or the OS adds a second inset (whitespace). -->
+  <rect width="1024" height="1024" fill="url(#bg)"/>
 
   <!-- Book shadow -->
   <rect x="326" y="234" width="424" height="600" rx="46" fill="#00000044"/>
