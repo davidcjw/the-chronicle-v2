@@ -68,7 +68,12 @@ export default {
         if (!title || !title.trim()) return res.status(400).json({ error: "title required" });
         const col = board.columns.find((c) => c.id === columnId) ? columnId : board.columns[0]?.id;
         if (!col) return res.status(400).json({ error: "no columns" });
-        const card = { id: randomUUID(), title: title.trim(), columnId: col };
+        const card = {
+          id: randomUUID(),
+          title: title.trim(),
+          columnId: col,
+          dateAdded: new Date().toISOString(),
+        };
         board.cards.push(card);
         save(board);
         res.json(card);
@@ -85,6 +90,13 @@ export default {
         if (!card) return res.status(404).json({ error: "not found" });
         const { title, columnId } = req.body;
         if (typeof title === "string" && title.trim()) card.title = title.trim();
+        // Detail fields — only touched when present, so a column-move drag
+        // (which sends just { columnId }) never wipes them.
+        if ("nextAction" in req.body)
+          card.nextAction = typeof req.body.nextAction === "string" ? req.body.nextAction : "";
+        if ("nextActionDue" in req.body) card.nextActionDue = req.body.nextActionDue || null;
+        if ("nextActionDueTime" in req.body) card.nextActionDueTime = req.body.nextActionDueTime || null;
+        if ("calendar" in req.body) card.calendar = req.body.calendar || null;
         if (columnId && board.columns.find((c) => c.id === columnId)) {
           board.cards = board.cards.filter((c) => c.id !== card.id);
           card.columnId = columnId;

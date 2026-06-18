@@ -2,10 +2,12 @@ import { google } from "googleapis";
 import fs from "fs";
 import path from "path";
 import config from "../../dashboard.config.js";
+import { getDataDir } from "../../src/settingsStore.js";
 
 const cfg = config["google-tasks"] ?? {};
 const maxItems = cfg.maxItems ?? 20;
-const TOKEN_PATH = path.resolve("tokens.json");
+// Resolved against the app data dir (shared with the calendar plugin), not cwd.
+const TOKEN_PATH = () => path.join(getDataDir(), "tokens.json");
 
 export function encodeId(tasklistId, taskId) {
   return Buffer.from(`${tasklistId}:${taskId}`).toString("base64url");
@@ -26,8 +28,8 @@ function getOAuthClient() {
 }
 
 function loadTokens(client) {
-  if (fs.existsSync(TOKEN_PATH)) {
-    client.setCredentials(JSON.parse(fs.readFileSync(TOKEN_PATH, "utf-8")));
+  if (fs.existsSync(TOKEN_PATH())) {
+    client.setCredentials(JSON.parse(fs.readFileSync(TOKEN_PATH(), "utf-8")));
     return true;
   }
   return false;
@@ -43,7 +45,7 @@ function authGuard(res, client) {
 
 function handleApiError(err, res) {
   if (err.code === 401) {
-    if (fs.existsSync(TOKEN_PATH)) fs.unlinkSync(TOKEN_PATH);
+    if (fs.existsSync(TOKEN_PATH())) fs.unlinkSync(TOKEN_PATH());
     return res.status(401).json({ error: "token_expired", authUrl: "/auth/google" });
   }
   res.status(500).json({ error: err.message });

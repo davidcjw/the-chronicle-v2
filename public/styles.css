@@ -518,6 +518,16 @@ main {
 
 .is-collapsed .card-body { display: none; }
 
+/* Collapsed: header fills the card and centers its content vertically.
+   (Default header has asymmetric padding + bottom border for the body divider,
+   which would push the title below center when nothing is below it.) */
+.is-collapsed .card-header {
+  height: 100%;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
 /* ── Scrollbar ── */
 .card-body::-webkit-scrollbar { width: 4px; }
 .card-body::-webkit-scrollbar-track { background: transparent; }
