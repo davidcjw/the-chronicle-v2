@@ -7,11 +7,11 @@
 export const SETTINGS_SCHEMA = [
   {
     id: "news",
-    label: "AI / ML News",
+    label: "News",
     blurb: "Headlines from Google News + any custom RSS feeds. No account needed.",
     secrets: [],
     config: [
-      { key: "topics", type: "list", label: "Topics", help: "Search terms, one per line" },
+      { key: "topics", type: "list", label: "Topics", help: "Search terms — press Enter to add" },
       { key: "feeds", type: "list", label: "Custom RSS feed URLs" },
       { key: "maxArticles", type: "number", label: "Max articles" },
     ],

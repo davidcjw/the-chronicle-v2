@@ -68,7 +68,7 @@ async function getNews(req, res) {
 
 export default {
   id: "news",
-  label: "AI/ML News",
+  label: "News",
   env: [], // no API key needed
   routes: [{ method: "GET", path: "/api/news", handler: getNews }],
 };

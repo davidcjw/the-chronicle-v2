@@ -14,29 +14,110 @@ export function el(tag, attrs = {}, children = []) {
   return n;
 }
 
-export const listToText = (v) => (Array.isArray(v) ? v.join("\n") : v ?? "");
 export const textToList = (t) =>
   t.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
 
 export function fieldInput(pluginId, field, value) {
+  if (field.type === "list") return chipField(pluginId, field, value);
+
   const id = `cfg-${pluginId}-${field.key}`;
-  let input;
-  if (field.type === "list") {
-    input = el("textarea", { id, rows: 3, "data-type": "list" });
-    input.value = listToText(value);
-  } else {
-    input = el("input", {
-      id,
-      type: field.type === "number" ? "number" : "text",
-      "data-type": field.type,
-    });
-    input.value = value ?? "";
-  }
+  const input = el("input", {
+    id,
+    type: field.type === "number" ? "number" : "text",
+    "data-type": field.type,
+  });
+  input.value = value ?? "";
   input.dataset.plugin = pluginId;
   input.dataset.key = field.key;
   return el("label", { class: "set-field" }, [
     el("span", { class: "set-field-label" }, field.label),
     input,
+    field.help ? el("small", { class: "set-help" }, field.help) : null,
+  ]);
+}
+
+// A "list" field as removable badges + an add-input, instead of a newline textarea.
+// Backed by a hidden [data-key][data-type=list] input so collect() is unchanged.
+function chipField(pluginId, field, value) {
+  const values = Array.isArray(value) ? [...value] : value ? textToList(value) : [];
+
+  const hidden = el("input", { type: "hidden", "data-type": "list" });
+  hidden.dataset.plugin = pluginId;
+  hidden.dataset.key = field.key;
+  const sync = () => (hidden.value = values.join("\n"));
+
+  const chips = el("div", { class: "set-chips" });
+  const input = el("input", { class: "set-chip-input", type: "text", placeholder: "Type and press Enter" });
+
+  const render = () => {
+    chips.querySelectorAll(".set-chip").forEach((c) => c.remove());
+    values.forEach((v, i) => {
+      const chip = el("span", { class: "set-chip" }, [
+        el("span", { class: "set-chip-label" }, v),
+        el(
+          "button",
+          {
+            class: "set-chip-x",
+            type: "button",
+            title: "Remove",
+            onclick: () => {
+              values.splice(i, 1);
+              render();
+            },
+          },
+          "×"
+        ),
+      ]);
+      chips.insertBefore(chip, input);
+    });
+    sync();
+  };
+
+  const add = (raw) => {
+    let changed = false;
+    for (const p of textToList(raw)) if (!values.includes(p)) (values.push(p), (changed = true));
+    if (changed) render();
+  };
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      add(input.value);
+      input.value = "";
+    } else if (e.key === "Backspace" && !input.value && values.length) {
+      values.pop();
+      render();
+    }
+  });
+  input.addEventListener("blur", () => {
+    if (input.value.trim()) {
+      add(input.value);
+      input.value = "";
+    }
+  });
+  input.addEventListener("paste", (e) => {
+    const text = (e.clipboardData || window.clipboardData)?.getData("text") || "";
+    if (/[\n,]/.test(text)) {
+      e.preventDefault();
+      add(text);
+      input.value = "";
+    }
+  });
+
+  chips.append(input);
+  render();
+  // Clicking anywhere in the field focuses the add-input.
+  chips.addEventListener("mousedown", (e) => {
+    if (e.target === chips) {
+      e.preventDefault();
+      input.focus();
+    }
+  });
+
+  return el("div", { class: "set-field" }, [
+    el("span", { class: "set-field-label" }, field.label),
+    chips,
+    hidden,
     field.help ? el("small", { class: "set-help" }, field.help) : null,
   ]);
 }

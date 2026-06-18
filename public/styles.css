@@ -634,6 +634,28 @@ main {
   color: var(--text); padding: 0.45rem 0.6rem; font: inherit; font-size: 0.85rem; resize: vertical;
 }
 .set-field input:focus, .set-field textarea:focus { outline: none; border-color: var(--accent); }
+/* List fields rendered as removable badges + an add-input */
+.set-chips {
+  display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 0.35rem 0.4rem; min-height: 2.1rem; cursor: text;
+}
+.set-chips:focus-within { border-color: var(--accent); }
+.set-chip {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+  font-size: 0.78rem; padding: 0.12rem 0.2rem 0.12rem 0.5rem; border-radius: 999px; max-width: 100%;
+}
+.set-chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.set-chip-x {
+  background: none; border: none; color: var(--text-muted); cursor: pointer;
+  font-size: 0.95rem; line-height: 1; padding: 0 0.15rem;
+}
+.set-chip-x:hover { color: #f87171; }
+.set-field input.set-chip-input {
+  flex: 1; min-width: 7rem; background: transparent; border: none; padding: 0.15rem 0.2rem;
+}
+.set-field input.set-chip-input:focus { border: none; }
 .set-help { font-size: 0.72rem; color: var(--text-muted); line-height: 1.35; }
 .set-badge {
   font-size: 0.62rem; color: #34d399; border: 1px solid #34d39955;

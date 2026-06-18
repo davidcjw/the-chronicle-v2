@@ -133,7 +133,8 @@ async function getEvents(req, res) {
   try {
     const cal = google.calendar({ version: "v3", auth: client });
     const now = new Date();
-    const weekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    // 30-day horizon so kanban due dates (often weeks out) actually surface here.
+    const horizon = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
     const results = await Promise.all(
       calendarIds.map(async (calendarId, i) => {
@@ -142,7 +143,7 @@ async function getEvents(req, res) {
           cal.events.list({
             calendarId,
             timeMin: now.toISOString(),
-            timeMax: weekLater.toISOString(),
+            timeMax: horizon.toISOString(),
             singleEvents: true,
             orderBy: "startTime",
             maxResults: 20,

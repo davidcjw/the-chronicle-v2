@@ -1,12 +1,10 @@
-// Kanban widget — user-defined columns and draggable cards. Backed by the local
-// /api/kanban store (no external account). Cards carry optional detail fields
-// (next action + due date) editable in a modal, and a due date can be pushed to
-// a synced Google Calendar via /api/calendar/*. Avoids native alert/confirm/prompt.
+// Kanban widget — the dashboard renders one card per board (see instances()).
+// Each board has user-defined columns and draggable cards backed by the local
+// /api/kanban store. Cards carry optional detail fields (next action, due date,
+// notes) editable in a modal, and a due date can be pushed to a synced Google
+// Calendar via /api/calendar/*. Avoids native alert/confirm/prompt.
 
-let board = null;
-let rootEl = null;
-let refocusColId = null; // restore add-card focus after a re-render
-let writableCals = undefined; // undefined = not fetched, null = unavailable, [] = none
+const ICON = "🗂️";
 
 async function api(method, url, body) {
   const res = await fetch(url, {
@@ -18,22 +16,52 @@ async function api(method, url, body) {
   return res.json();
 }
 
-const cardsIn = (colId) => board.cards.filter((c) => c.columnId === colId);
+const reloadDashboard = () => window.dispatchEvent(new CustomEvent("chronicle:reload-dashboard"));
 
-function saveColumns() {
-  return api("PUT", "/api/kanban/columns", { columns: board.columns }).then((b) => {
-    board = b;
-    draw();
+// Ask the calendar widget (if present on the dashboard) to re-pull its events.
+const refreshCalendarWidget = () =>
+  window.dispatchEvent(new CustomEvent("chronicle:reload-widget", { detail: { id: "calendar" } }));
+
+// --- instance discovery: one widget descriptor per board -------------------
+
+export async function instances() {
+  let boards = [];
+  try {
+    boards = await api("GET", "/api/kanban/boards");
+  } catch {
+    boards = [];
+  }
+  return boards.map((meta) => ({
+    id: `kanban__${meta.id}`,
+    title: meta.name,
+    icon: ICON,
+    size: "wide",
+    w: 6, // half width so two boards sit side by side
+    h: 8,
+    load: () => api("GET", `/api/kanban/boards/${meta.id}`),
+    render: (data, el) => renderBoard(el, data),
+  }));
+}
+
+function renderBoard(rootEl, board) {
+  draw({ rootEl, board, boardId: board.id, base: `/api/kanban/boards/${board.id}`, refocusColId: null });
+}
+
+// --- helpers (all take the per-instance state `st`) -------------------------
+
+const cardsIn = (st, colId) => st.board.cards.filter((c) => c.columnId === colId);
+
+function saveColumns(st) {
+  return api("PUT", `${st.base}/columns`, { columns: st.board.columns }).then((b) => {
+    st.board = b;
+    draw(st);
   });
 }
 
-// Persist the detail fields of a card and mirror the saved copy back into state.
-function patchCard(card, fields) {
+function patchCard(st, card, fields) {
   Object.assign(card, fields);
-  return api("PATCH", `/api/kanban/cards/${card.id}`, fields);
+  return api("PATCH", `${st.base}/cards/${card.id}`, fields);
 }
-
-// --- due date helpers -------------------------------------------------------
 
 function dueInfo(due) {
   if (!due) return null;
@@ -54,22 +82,22 @@ function fmtDateAdded(iso) {
   return isNaN(d) ? "—" : d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
-// Summary used for the calendar event: prefer the next action, fall back to title.
 const eventSummary = (card) => (card.nextAction && card.nextAction.trim()) || card.title;
 
+let writableCals = undefined; // shared cache across boards: undefined=unfetched, null=unavailable, []=none
 async function getWritableCals() {
   if (writableCals !== undefined) return writableCals;
   try {
     writableCals = await api("GET", "/api/calendar/writable");
   } catch {
-    writableCals = null; // calendar plugin inactive or not connected
+    writableCals = null;
   }
   return writableCals;
 }
 
 // --- card -------------------------------------------------------------------
 
-function makeCard(card) {
+function makeCard(st, card) {
   const el = document.createElement("div");
   el.className = "kb-card";
   el.draggable = true;
@@ -93,7 +121,7 @@ function makeCard(card) {
     const next = title.textContent.trim();
     if (next && next !== card.title) {
       card.title = next;
-      api("PATCH", `/api/kanban/cards/${card.id}`, { title: next }).catch(() => draw());
+      api("PATCH", `${st.base}/cards/${card.id}`, { title: next }).catch(() => draw(st));
     } else {
       title.textContent = card.title;
     }
@@ -103,39 +131,51 @@ function makeCard(card) {
   details.className = "kb-card-edit";
   details.title = "Card details";
   details.textContent = "⋯";
-  details.addEventListener("click", () => openCardModal(card));
+  details.addEventListener("click", () => openCardModal(st, card));
 
   const del = document.createElement("button");
   del.className = "kb-card-del";
   del.title = "Delete card";
   del.textContent = "✕";
   del.addEventListener("click", () => {
-    board.cards = board.cards.filter((c) => c.id !== card.id);
-    draw();
+    st.board.cards = st.board.cards.filter((c) => c.id !== card.id);
+    draw(st);
     if (card.calendar?.eventId) {
       const cid = encodeURIComponent(card.calendar.calendarId || "primary");
-      api("DELETE", `/api/calendar/events/${card.calendar.eventId}?calendarId=${cid}`).catch(() => {});
+      api("DELETE", `/api/calendar/events/${card.calendar.eventId}?calendarId=${cid}`)
+        .then(refreshCalendarWidget)
+        .catch(() => {});
     }
-    api("DELETE", `/api/kanban/cards/${card.id}`).catch(() => {});
+    api("DELETE", `${st.base}/cards/${card.id}`).catch(() => {});
   });
 
   row.append(title, details, del);
   el.append(row);
 
-  // Due badge (+ a tiny calendar mark when the due date is synced to Google).
+  // Meta row: due badge, a 📅 mark when synced to Google, and a 📝 mark for notes.
   const info = dueInfo(card.nextActionDue);
-  if (info) {
+  const hasNotes = !!(card.notes && card.notes.trim());
+  if (info || card.calendar?.eventId || hasNotes) {
     const meta = document.createElement("div");
     meta.className = "kb-card-meta";
-    const badge = document.createElement("span");
-    badge.className = `kb-due ${info.cls}`;
-    badge.textContent = info.label;
-    meta.append(badge);
+    if (info) {
+      const badge = document.createElement("span");
+      badge.className = `kb-due ${info.cls}`;
+      badge.textContent = info.label;
+      meta.append(badge);
+    }
     if (card.calendar?.eventId) {
       const mark = document.createElement("span");
-      mark.className = "kb-due-cal";
+      mark.className = "kb-card-mark";
       mark.title = "On your calendar";
       mark.textContent = "📅";
+      meta.append(mark);
+    }
+    if (hasNotes) {
+      const mark = document.createElement("span");
+      mark.className = "kb-card-mark";
+      mark.title = "Has notes";
+      mark.textContent = "📝";
       meta.append(mark);
     }
     el.append(meta);
@@ -162,7 +202,14 @@ function field(labelText, inputEl) {
   return wrap;
 }
 
-async function openCardModal(card) {
+function hint(text) {
+  const p = document.createElement("p");
+  p.className = "kbm-hint";
+  p.textContent = text;
+  return p;
+}
+
+async function openCardModal(st, card) {
   document.getElementById("kbm-overlay")?.remove();
 
   const overlay = document.createElement("div");
@@ -215,6 +262,12 @@ async function openCardModal(card) {
   dueRow.className = "kbm-due-row";
   dueRow.append(field("Next action due date", dueDate), field("Time (optional)", dueTime));
 
+  const notes = document.createElement("textarea");
+  notes.className = "kbm-input kbm-notes";
+  notes.placeholder = "Anything you want to remember about this card…";
+  notes.rows = 4;
+  notes.value = card.notes || "";
+
   const calSection = document.createElement("div");
   calSection.className = "kbm-cal";
 
@@ -232,13 +285,22 @@ async function openCardModal(card) {
   saveBtn.textContent = "Save";
   foot.append(cancel, saveBtn);
 
-  modal.append(head, added, field("Next action", nextAction), dueRow, calSection, status, foot);
+  modal.append(
+    head,
+    added,
+    field("Next action", nextAction),
+    dueRow,
+    field("Notes", notes),
+    calSection,
+    status,
+    foot
+  );
   overlay.append(modal);
   document.body.append(overlay);
 
-  // Read the live form values into the card's detail fields.
   const collect = () => ({
     nextAction: nextAction.value.trim(),
+    notes: notes.value,
     nextActionDue: dueDate.value || null,
     nextActionDueTime: dueDate.value && dueTime.value ? dueTime.value : null,
   });
@@ -248,7 +310,6 @@ async function openCardModal(card) {
     status.classList.toggle("err", !!isErr);
   };
 
-  // (Re)render the calendar block based on the card's current sync state.
   async function renderCal() {
     calSection.innerHTML = "";
     const cals = await getWritableCals();
@@ -266,7 +327,10 @@ async function openCardModal(card) {
       synced.className = "kbm-synced";
       const calName = cals.find((c) => c.id === card.calendar.calendarId)?.name || "calendar";
       const label = document.createElement("span");
-      label.innerHTML = `✓ On <strong>${calName}</strong>`;
+      label.append("✓ On ");
+      const strong = document.createElement("strong");
+      strong.textContent = calName;
+      label.append(strong);
       synced.append(label);
       if (card.calendar.htmlLink) {
         const view = document.createElement("a");
@@ -285,10 +349,11 @@ async function openCardModal(card) {
         try {
           const cid = encodeURIComponent(card.calendar.calendarId || "primary");
           await api("DELETE", `/api/calendar/events/${card.calendar.eventId}?calendarId=${cid}`);
-          await patchCard(card, { calendar: null });
+          await patchCard(st, card, { calendar: null });
           setStatus("Removed from calendar.");
+          refreshCalendarWidget();
           renderCal();
-          draw();
+          draw(st);
         } catch (err) {
           setStatus(err.message, true);
         }
@@ -298,7 +363,6 @@ async function openCardModal(card) {
       return;
     }
 
-    // Not synced yet → calendar picker + add button.
     const picker = document.createElement("select");
     picker.className = "kbm-input kbm-select";
     cals.forEach((c) => {
@@ -321,7 +385,7 @@ async function openCardModal(card) {
       setStatus("Adding to calendar…");
       try {
         const f = collect();
-        await patchCard(card, f); // persist latest fields first
+        await patchCard(st, card, f);
         const ev = await api("POST", "/api/calendar/events", {
           calendarId: picker.value,
           summary: eventSummary(card),
@@ -329,10 +393,11 @@ async function openCardModal(card) {
           due: f.nextActionDue,
           time: f.nextActionDueTime,
         });
-        await patchCard(card, { calendar: ev });
+        await patchCard(st, card, { calendar: ev });
         setStatus("Added to your calendar.");
+        refreshCalendarWidget();
         renderCal();
-        draw();
+        draw(st);
       } catch (err) {
         setStatus(err.message, true);
       }
@@ -344,18 +409,17 @@ async function openCardModal(card) {
     calSection.append(row);
   }
 
-  // Save: persist fields, and if already synced push the change to the event
-  // (or drop the event if the due date was cleared).
   saveBtn.addEventListener("click", async () => {
     setStatus("Saving…");
     try {
       const f = collect();
-      await patchCard(card, f);
+      const hadEvent = !!card.calendar?.eventId;
+      await patchCard(st, card, f);
       if (card.calendar?.eventId) {
         const cid = encodeURIComponent(card.calendar.calendarId || "primary");
         if (!f.nextActionDue) {
           await api("DELETE", `/api/calendar/events/${card.calendar.eventId}?calendarId=${cid}`);
-          await patchCard(card, { calendar: null });
+          await patchCard(st, card, { calendar: null });
         } else {
           const ev = await api("PATCH", `/api/calendar/events/${card.calendar.eventId}`, {
             calendarId: card.calendar.calendarId,
@@ -364,10 +428,11 @@ async function openCardModal(card) {
             due: f.nextActionDue,
             time: f.nextActionDueTime,
           });
-          await patchCard(card, { calendar: ev });
+          await patchCard(st, card, { calendar: ev });
         }
       }
-      draw();
+      if (hadEvent) refreshCalendarWidget();
+      draw(st);
       overlay.remove();
       document.removeEventListener("keydown", onEsc);
     } catch (err) {
@@ -379,20 +444,12 @@ async function openCardModal(card) {
   nextAction.focus();
 }
 
-function hint(text) {
-  const p = document.createElement("p");
-  p.className = "kbm-hint";
-  p.textContent = text;
-  return p;
-}
-
 // --- columns ----------------------------------------------------------------
 
-function makeColumn(col) {
+function makeColumn(st, col) {
   const colEl = document.createElement("div");
   colEl.className = "kb-col";
 
-  // Header: editable title + count + delete
   const head = document.createElement("div");
   head.className = "kb-col-head";
   const titleInput = document.createElement("input");
@@ -402,29 +459,28 @@ function makeColumn(col) {
     const v = titleInput.value.trim();
     if (v && v !== col.title) {
       col.title = v;
-      saveColumns();
+      saveColumns(st);
     } else {
       titleInput.value = col.title;
     }
   });
   const count = document.createElement("span");
   count.className = "kb-col-count";
-  count.textContent = cardsIn(col.id).length || "";
+  count.textContent = cardsIn(st, col.id).length || "";
   const del = document.createElement("button");
   del.className = "kb-col-del";
   del.title = "Delete column (cards move to the first column)";
   del.textContent = "✕";
   del.addEventListener("click", () => {
-    if (board.columns.length <= 1) return; // keep at least one
-    board.columns = board.columns.filter((c) => c.id !== col.id);
-    saveColumns();
+    if (st.board.columns.length <= 1) return; // keep at least one
+    st.board.columns = st.board.columns.filter((c) => c.id !== col.id);
+    saveColumns(st);
   });
   head.append(titleInput, count, del);
 
-  // Card list (drop target)
   const list = document.createElement("div");
   list.className = "kb-cards";
-  cardsIn(col.id).forEach((c) => list.append(makeCard(c)));
+  cardsIn(st, col.id).forEach((c) => list.append(makeCard(st, c)));
   list.addEventListener("dragover", (e) => {
     e.preventDefault();
     list.classList.add("drop-hover");
@@ -434,16 +490,15 @@ function makeColumn(col) {
     e.preventDefault();
     list.classList.remove("drop-hover");
     const id = e.dataTransfer.getData("text/plain");
-    const card = board.cards.find((c) => c.id === id);
+    const card = st.board.cards.find((c) => c.id === id);
     if (!card || card.columnId === col.id) return;
-    board.cards = board.cards.filter((c) => c.id !== id);
+    st.board.cards = st.board.cards.filter((c) => c.id !== id);
     card.columnId = col.id;
-    board.cards.push(card);
-    draw();
-    api("PATCH", `/api/kanban/cards/${id}`, { columnId: col.id }).catch(() => draw());
+    st.board.cards.push(card);
+    draw(st);
+    api("PATCH", `${st.base}/cards/${id}`, { columnId: col.id }).catch(() => draw(st));
   });
 
-  // Add-card input
   const add = document.createElement("input");
   add.className = "kb-add";
   add.placeholder = "+ Add card";
@@ -452,22 +507,91 @@ function makeColumn(col) {
     const v = add.value.trim();
     if (!v) return;
     add.value = "";
-    refocusColId = col.id;
-    api("POST", "/api/kanban/cards", { title: v, columnId: col.id })
+    st.refocusColId = col.id;
+    api("POST", `${st.base}/cards`, { title: v, columnId: col.id })
       .then((card) => {
-        board.cards.push(card);
-        draw();
+        st.board.cards.push(card);
+        draw(st);
       })
-      .catch(() => draw());
+      .catch(() => draw(st));
   });
 
   colEl.append(head, list, add);
   return colEl;
 }
 
-function draw() {
-  rootEl.innerHTML = `<style>
-    .kb-board { display:flex; gap:0.6rem; overflow-x:auto; height:100%; align-items:flex-start; padding-bottom:4px; }
+// --- board toolbar (rename / add / delete) ----------------------------------
+
+function makeBoardBar(st) {
+  const bar = document.createElement("div");
+  bar.className = "kb-bar";
+
+  const name = document.createElement("input");
+  name.className = "kb-bar-name";
+  name.value = st.board.name;
+  name.title = "Rename board";
+  name.addEventListener("change", async () => {
+    const v = name.value.trim();
+    if (!v || v === st.board.name) {
+      name.value = st.board.name;
+      return;
+    }
+    st.board.name = v;
+    try {
+      await api("PATCH", `/api/kanban/boards/${st.boardId}`, { name: v });
+      const headEl = document.getElementById(`card-kanban__${st.boardId}`);
+      const h2 = headEl?.querySelector(".card-header h2");
+      if (h2) h2.textContent = v;
+    } catch {
+      /* keep the typed value; it'll reconcile on next load */
+    }
+  });
+
+  const addBtn = document.createElement("button");
+  addBtn.className = "kb-bar-btn";
+  addBtn.textContent = "＋ Board";
+  addBtn.title = "Add a new board";
+  addBtn.addEventListener("click", async () => {
+    addBtn.disabled = true;
+    try {
+      await api("POST", "/api/kanban/boards", { name: "New board" });
+      reloadDashboard();
+    } catch {
+      addBtn.disabled = false;
+    }
+  });
+
+  const delBtn = document.createElement("button");
+  delBtn.className = "kb-bar-btn kb-bar-del";
+  delBtn.textContent = "🗑";
+  delBtn.title = "Delete this board";
+  delBtn.addEventListener("click", async () => {
+    try {
+      await api("DELETE", `/api/kanban/boards/${st.boardId}`);
+      reloadDashboard();
+    } catch (err) {
+      // e.g. last remaining board — surface briefly in the name field's title
+      name.title = err.message;
+    }
+  });
+
+  bar.append(name, addBtn, delBtn);
+  return bar;
+}
+
+// --- draw -------------------------------------------------------------------
+
+function draw(st) {
+  st.rootEl.innerHTML = `<style>
+    .kb-wrap { display:flex; flex-direction:column; height:100%; gap:0.45rem; }
+    .kb-bar { display:flex; align-items:center; gap:0.35rem; flex:0 0 auto; }
+    .kb-bar-name { flex:1; min-width:0; background:var(--surface-2); border:1px solid transparent; color:var(--text); font-weight:600; font-size:0.82rem; padding:0.25rem 0.45rem; border-radius:6px; }
+    .kb-bar-name:focus { outline:none; border-color:var(--accent); }
+    .kb-bar-btn { background:transparent; border:1px solid var(--border); color:var(--text-muted); border-radius:6px; padding:0.25rem 0.5rem; font-size:0.74rem; cursor:pointer; white-space:nowrap; }
+    .kb-bar-btn:hover { border-color:var(--accent); color:var(--text); }
+    .kb-bar-btn:disabled { opacity:0.5; cursor:default; }
+    .kb-bar-del:hover { border-color:#f87171; color:#f87171; }
+    .kb-board { display:flex; gap:0.6rem; overflow-x:auto; flex:1; align-items:flex-start; padding-bottom:4px; }
     .kb-col { background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); width:190px; flex:0 0 auto; display:flex; flex-direction:column; max-height:100%; }
     .kb-col-head { display:flex; align-items:center; gap:0.3rem; padding:0.45rem 0.5rem 0.35rem; }
     .kb-col-title { flex:1; min-width:0; background:transparent; border:none; color:var(--text); font-weight:600; font-size:0.82rem; padding:2px 4px; border-radius:4px; }
@@ -496,7 +620,7 @@ function draw() {
     .kb-due-over { background:rgba(248,113,113,0.16); color:#f87171; }
     .kb-due-soon { background:rgba(245,158,11,0.16); color:#f59e0b; }
     .kb-due-far { background:var(--surface-2); color:var(--text-muted); }
-    .kb-due-cal { font-size:0.6rem; opacity:0.7; }
+    .kb-card-mark { font-size:0.6rem; opacity:0.7; }
     .kb-add { margin:0.4rem; background:transparent; border:1px dashed var(--border); color:var(--text-muted); border-radius:6px; padding:0.35rem 0.5rem; font-size:0.78rem; }
     .kb-add:focus { outline:none; border-color:var(--accent); color:var(--text); }
     .kb-addcol { flex:0 0 auto; align-self:flex-start; background:transparent; border:1px dashed var(--border); color:var(--text-muted); border-radius:var(--radius-sm); padding:0.5rem 0.7rem; cursor:pointer; font-size:0.8rem; white-space:nowrap; }
@@ -513,6 +637,7 @@ function draw() {
     .kbm-label { font-size:0.72rem; color:var(--text-muted); font-weight:600; }
     .kbm-input { background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); padding:0.4rem 0.5rem; font-size:0.82rem; font-family:inherit; }
     .kbm-input:focus { outline:none; border-color:var(--accent); }
+    .kbm-notes { resize:vertical; min-height:3.5rem; line-height:1.45; }
     .kbm-select { cursor:pointer; }
     .kbm-due-row { display:flex; gap:0.6rem; }
     .kbm-cal { border-top:1px solid var(--border); margin-top:0.2rem; padding-top:0.8rem; }
@@ -532,40 +657,29 @@ function draw() {
     .kbm-save { background:var(--accent); border-color:var(--accent); color:#06231a; font-weight:600; }
   </style>`;
 
+  const wrap = document.createElement("div");
+  wrap.className = "kb-wrap";
+  wrap.append(makeBoardBar(st));
+
   const boardEl = document.createElement("div");
   boardEl.className = "kb-board";
-  board.columns.forEach((col) => boardEl.append(makeColumn(col)));
+  st.board.columns.forEach((col) => boardEl.append(makeColumn(st, col)));
 
   const addCol = document.createElement("button");
   addCol.className = "kb-addcol";
   addCol.textContent = "+ Column";
   addCol.addEventListener("click", () => {
-    board.columns.push({ id: "", title: "New column" });
-    saveColumns();
+    st.board.columns.push({ id: "", title: "New column" });
+    saveColumns(st);
   });
   boardEl.append(addCol);
-  rootEl.append(boardEl);
+  wrap.append(boardEl);
+  st.rootEl.append(wrap);
 
-  if (refocusColId) {
-    const cols = board.columns.map((c) => c.id);
-    const idx = cols.indexOf(refocusColId);
+  if (st.refocusColId) {
+    const idx = st.board.columns.map((c) => c.id).indexOf(st.refocusColId);
     const inputs = boardEl.querySelectorAll(".kb-add");
     if (idx >= 0 && inputs[idx]) inputs[idx].focus();
-    refocusColId = null;
+    st.refocusColId = null;
   }
 }
-
-export default {
-  id: "kanban",
-  title: "Kanban",
-  icon: "🗂️",
-  size: "wide",
-  async load() {
-    return api("GET", "/api/kanban");
-  },
-  render(data, el) {
-    board = data;
-    rootEl = el;
-    draw();
-  },
-};

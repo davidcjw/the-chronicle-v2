@@ -8,8 +8,8 @@ function timeAgo(iso) {
 
 export default {
   id: "news",
-  title: "AI / ML News",
-  icon: "🤖",
+  title: "News",
+  icon: "📰",
   size: "wide",
 
   async load() {

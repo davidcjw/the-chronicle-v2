@@ -8,6 +8,21 @@ const refreshBtn = document.getElementById("refresh-btn");
 const resetBtn = document.getElementById("reset-btn");
 
 let grid;
+const activeWidgets = new Map(); // id -> widget module, for targeted reloads
+
+// Lets one widget ask another to re-pull (e.g. kanban adds a calendar event and
+// wants the calendar widget to refresh) without reloading the whole dashboard.
+window.addEventListener("chronicle:reload-widget", (e) => {
+  const w = activeWidgets.get(e.detail?.id);
+  if (w) loadWidget(w);
+});
+
+// Re-discover widgets and re-render the grid (e.g. a kanban board was added or
+// removed, which changes how many cards exist).
+window.addEventListener("chronicle:reload-dashboard", () => init(false));
+
+const esc = (s) =>
+  String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 function setGreeting() {
   const hour = new Date().getHours();
@@ -20,8 +35,11 @@ function setGreeting() {
   );
 }
 
-// Default grid position per widget — users can override by dragging/resizing
+// Default grid position per widget — users can override by dragging/resizing.
+// A widget may carry an explicit { w, h } (e.g. kanban boards default to half-width
+// so two sit side by side).
 function defaultPos(widget) {
+  if (widget.w && widget.h) return { w: widget.w, h: widget.h };
   return widget.size === "wide" ? { w: 12, h: 8 } : { w: 4, h: 7 };
 }
 
@@ -78,7 +96,7 @@ function cardHTML(widget) {
     <section class="card" id="card-${widget.id}">
       <div class="card-header" title="Drag to move">
         <span class="card-icon">${widget.icon}</span>
-        <h2>${widget.title}</h2>
+        <h2>${esc(widget.title)}</h2>
         <button class="card-collapse" data-id="${widget.id}" title="Collapse">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
             <polyline points="2,4 6,8 10,4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -151,19 +169,25 @@ async function init(resetPositions = false) {
 
   const activePlugins = await fetch("/api/plugins").then((r) => r.json());
 
+  // A plugin's widget module normally has a single default export. It may instead
+  // export an async `instances()` returning several widget descriptors (kanban
+  // renders one card per board).
   const widgets = await Promise.all(
     activePlugins.map(async ({ id }) => {
       try {
-        const { default: widget } = await import(`/widgets/${id}/widget.js`);
-        return widget;
+        const mod = await import(`/widgets/${id}/widget.js`);
+        if (typeof mod.instances === "function") return await mod.instances();
+        return [mod.default];
       } catch {
         console.warn(`No frontend widget found for plugin: ${id}`);
-        return null;
+        return [];
       }
     })
   );
 
-  const validWidgets = widgets.filter(Boolean);
+  const validWidgets = widgets.flat().filter(Boolean);
+  activeWidgets.clear();
+  validWidgets.forEach((w) => activeWidgets.set(w.id, w));
   const saved = resetPositions ? {} : loadLayout();
 
   grid.batchUpdate();
