@@ -12,6 +12,7 @@ import { SETTINGS_SCHEMA } from "./settingsSchema.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
 const RESTART_CODE = 86; // supervisor/Electron re-fork on this exit code
+const BOOT_ID = `${process.pid}-${Date.now()}`; // changes every fork; lets the UI wait for a real restart
 
 const settings = loadSettings();
 applySecretsToEnv(settings); // must run before any plugin is imported
@@ -21,6 +22,12 @@ const app = express();
 const PORT = settings.port || process.env.PORT || 3737;
 
 app.use(express.json());
+// Same-origin requests can read this; the Settings UI uses it to detect when the
+// re-forked server (not the dying old one) is answering before it reloads.
+app.use((req, res, next) => {
+  res.set("X-Chronicle-Boot", BOOT_ID);
+  next();
+});
 app.use(express.static(path.join(REPO_ROOT, "public")));
 
 const activePlugins = [];

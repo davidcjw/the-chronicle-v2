@@ -106,22 +106,34 @@ export async function postSettings(payload) {
   });
 }
 
-// Resolves once the re-forked server is answering again.
-export async function waitForServer() {
+// The current server's boot id (changes on every re-fork), or null if unreachable.
+async function currentBoot() {
+  try {
+    const r = await fetch("/api/plugins", { cache: "no-store" });
+    return r.ok ? r.headers.get("X-Chronicle-Boot") : null;
+  } catch {
+    return null;
+  }
+}
+
+// Resolves once a *new* server instance is answering. Polling for "any response"
+// isn't enough: the old server stays up ~250ms after the save POST, so we'd reload
+// against stale config. Waiting for a different boot id avoids that race.
+export async function waitForRestart(prevBoot) {
   for (let i = 0; i < 60; i++) {
-    try {
-      if ((await fetch("/api/plugins", { cache: "no-store" })).ok) return true;
-    } catch {}
+    const boot = await currentBoot();
+    if (boot && boot !== prevBoot) return true;
     await sleep(500);
   }
   return false;
 }
 
-// Saves settings, waits for the server to re-fork, then reloads.
+// Saves settings, waits for the server to actually re-fork, then reloads.
 export async function saveAndRestart(payload, onStatus) {
   onStatus?.("Saving & restarting…");
+  const before = await currentBoot();
   await postSettings(payload);
-  await waitForServer();
+  await waitForRestart(before);
   location.reload();
 }
 
@@ -150,8 +162,9 @@ async function connectGoogle(card, state, { reloadOnDone }, onStatus) {
   }
   if (hasNew) {
     onStatus("Saving keys & restarting…");
+    const before = await currentBoot();
     await postSettings({ secrets: { GOOGLE_CLIENT_ID: id, GOOGLE_CLIENT_SECRET: secret } });
-    await waitForServer();
+    await waitForRestart(before);
     state.secretsSet.GOOGLE_CLIENT_ID = true;
     state.secretsSet.GOOGLE_CLIENT_SECRET = true;
   }

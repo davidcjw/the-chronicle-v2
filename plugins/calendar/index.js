@@ -49,6 +49,10 @@ function getAuthUrl(req, res) {
   res.redirect(
     client.generateAuthUrl({
       access_type: "offline",
+      // Force the consent screen so Google always returns a refresh_token —
+      // without this, a re-authorization omits it and loadTokens() fails,
+      // leaving the UI stuck on "Connect" even though sign-in succeeded.
+      prompt: "consent",
       scope: [
         "https://www.googleapis.com/auth/calendar.readonly",
         "https://www.googleapis.com/auth/tasks",
@@ -60,6 +64,12 @@ function getAuthUrl(req, res) {
 async function handleCallback(req, res) {
   const client = getOAuthClient();
   const { tokens } = await client.getToken(req.query.code);
+  // Never clobber an existing refresh_token: if Google didn't send one this
+  // round, reuse the one we already have so loadTokens() keeps working.
+  if (!tokens.refresh_token && fs.existsSync(TOKEN_PATH)) {
+    const prev = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf-8"));
+    if (prev.refresh_token) tokens.refresh_token = prev.refresh_token;
+  }
   client.setCredentials(tokens);
   fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens));
   // Land on a friendly success page (consent happens in the user's real browser,
