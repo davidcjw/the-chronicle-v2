@@ -142,17 +142,12 @@ function makeCard(st, card) {
     }
   });
 
-  const details = document.createElement("button");
-  details.className = "kb-card-edit";
-  details.title = "Card details";
-  details.textContent = "⋯";
-  details.addEventListener("click", () => openCardModal(st, card));
-
   const del = document.createElement("button");
   del.className = "kb-card-del";
   del.title = "Delete card";
   del.textContent = "✕";
-  del.addEventListener("click", () => {
+  del.addEventListener("click", (e) => {
+    e.stopPropagation();
     st.board.cards = st.board.cards.filter((c) => c.id !== card.id);
     draw(st);
     if (card.calendar?.eventId) {
@@ -164,36 +159,17 @@ function makeCard(st, card) {
     api("DELETE", `${st.base}/cards/${card.id}`).catch(() => {});
   });
 
-  row.append(title, details, del);
+  row.append(title, del);
   el.append(row);
 
-  // Meta row: due badge + small marks for calendar / notes / links.
-  const info = dueInfo(card.nextActionDue);
-  const hasNotes = !!(card.notes && card.notes.trim());
-  const hasLinks = !!(card.links && card.links.length);
-  if (info || card.calendar?.eventId || hasNotes || hasLinks) {
-    const meta = document.createElement("div");
-    meta.className = "kb-card-meta";
-    if (info) {
-      const badge = document.createElement("span");
-      badge.className = `kb-due ${info.cls}`;
-      badge.textContent = info.label;
-      meta.append(badge);
-    }
-    const mark = (emoji, title) => {
-      const m = document.createElement("span");
-      m.className = "kb-card-mark";
-      m.title = title;
-      m.textContent = emoji;
-      meta.append(m);
-    };
-    if (card.calendar?.eventId) mark("📅", "On your calendar");
-    if (hasNotes) mark("📝", "Has notes");
-    if (hasLinks) mark("🔗", "Has links");
-    el.append(meta);
+  // ── Top section: subtitle + tags ──
+  if (card.subtitle) {
+    const sub = document.createElement("div");
+    sub.className = "kb-card-sub";
+    sub.textContent = card.subtitle;
+    el.append(sub);
   }
 
-  // Tags get their own badge row.
   if (card.tags && card.tags.length) {
     const tagRow = document.createElement("div");
     tagRow.className = "kb-card-tags";
@@ -205,6 +181,51 @@ function makeCard(st, card) {
     });
     el.append(tagRow);
   }
+
+  // ── Bottom section: due + marks, then the next-action description ──
+  const info = dueInfo(card.nextActionDue);
+  const hasNotes = !!(card.notes && card.notes.trim());
+  const hasLinks = !!(card.links && card.links.length);
+  const nextAction = card.nextAction && card.nextAction.trim();
+  if (info || card.calendar?.eventId || hasNotes || hasLinks || nextAction) {
+    el.append(Object.assign(document.createElement("div"), { className: "kb-card-divider" }));
+
+    if (info || card.calendar?.eventId || hasNotes || hasLinks) {
+      const meta = document.createElement("div");
+      meta.className = "kb-card-meta";
+      if (info) {
+        const badge = document.createElement("span");
+        badge.className = `kb-due ${info.cls}`;
+        badge.textContent = `🕐 ${info.label}`;
+        meta.append(badge);
+      }
+      const mark = (emoji, title) => {
+        const m = document.createElement("span");
+        m.className = "kb-card-mark";
+        m.title = title;
+        m.textContent = emoji;
+        meta.append(m);
+      };
+      if (card.calendar?.eventId) mark("📅", "On your calendar");
+      if (hasNotes) mark("📝", "Has notes");
+      if (hasLinks) mark("🔗", "Has links");
+      el.append(meta);
+    }
+
+    if (nextAction) {
+      const na = document.createElement("div");
+      na.className = "kb-card-next";
+      na.textContent = nextAction;
+      el.append(na);
+    }
+  }
+
+  // Click anywhere on the card (except the inline-editable title and delete) opens
+  // the detail modal.
+  el.addEventListener("click", (e) => {
+    if (e.target.closest(".kb-card-title") || e.target.closest(".kb-card-del")) return;
+    openCardModal(st, card);
+  });
 
   el.addEventListener("dragstart", (e) => {
     e.dataTransfer.setData("text/plain", card.id);
@@ -352,6 +373,22 @@ async function openCardModal(st, card) {
   added.className = "kbm-added";
   added.textContent = `Added ${fmtDateAdded(card.dateAdded)}`;
 
+  const titleInput = document.createElement("input");
+  titleInput.type = "text";
+  titleInput.className = "kbm-input";
+  titleInput.placeholder = "Card title";
+  titleInput.value = card.title || "";
+  // Keep the modal heading in sync as the title is edited.
+  titleInput.addEventListener("input", () => {
+    h.textContent = titleInput.value.trim() || card.title;
+  });
+
+  const subtitle = document.createElement("input");
+  subtitle.type = "text";
+  subtitle.className = "kbm-input";
+  subtitle.placeholder = "Subtitle (optional)";
+  subtitle.value = card.subtitle || "";
+
   const nextAction = document.createElement("input");
   nextAction.type = "text";
   nextAction.className = "kbm-input";
@@ -401,6 +438,8 @@ async function openCardModal(st, card) {
   modal.append(
     head,
     added,
+    field("Title", titleInput),
+    field("Subtitle", subtitle),
     field("Next action", nextAction),
     dueRow,
     field("Tags", tagsEditor.wrap),
@@ -414,6 +453,8 @@ async function openCardModal(st, card) {
   document.body.append(overlay);
 
   const collect = () => ({
+    title: titleInput.value.trim() || card.title,
+    subtitle: subtitle.value.trim(),
     nextAction: nextAction.value.trim(),
     notes: notes.value,
     tags: tagsEditor.values(),
@@ -661,13 +702,12 @@ function draw(st) {
     .kb-card-row { display:flex; gap:0.35rem; align-items:flex-start; }
     .kb-card-title { flex:1; outline:none; line-height:1.35; word-break:break-word; }
     .kb-card-title:focus { background:var(--surface-2); border-radius:3px; }
-    .kb-card-edit, .kb-card-del { background:none; border:none; color:var(--text-muted); cursor:pointer; opacity:0; flex-shrink:0; padding:0; line-height:1; }
-    .kb-card-edit { font-size:0.95rem; }
-    .kb-card-del { font-size:0.72rem; }
-    .kb-card:hover .kb-card-edit { opacity:0.55; }
+    .kb-card-sub { font-size:0.7rem; color:var(--text-muted); line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:-0.1rem; }
+    .kb-card-del { background:none; border:none; color:var(--text-muted); cursor:pointer; opacity:0; flex-shrink:0; padding:0; line-height:1; font-size:0.72rem; }
     .kb-card:hover .kb-card-del { opacity:0.55; }
-    .kb-card-edit:hover { opacity:1; color:var(--text); }
     .kb-card-del:hover { opacity:1; color:#f87171; }
+    .kb-card-divider { height:1px; background:var(--border); margin:0.15rem 0; }
+    .kb-card-next { font-size:0.78rem; color:var(--text); line-height:1.35; word-break:break-word; }
     .kb-card-meta { display:flex; align-items:center; gap:0.3rem; }
     .kb-due { font-size:0.66rem; font-weight:600; border-radius:999px; padding:0.05rem 0.4rem; }
     .kb-due-over { background:rgba(248,113,113,0.16); color:#f87171; }

@@ -194,6 +194,8 @@ export default {
         if (typeof title === "string" && title.trim()) card.title = title.trim();
         // Detail fields — only touched when present, so a column-move drag
         // (which sends just { columnId }) never wipes them.
+        if ("subtitle" in req.body)
+          card.subtitle = typeof req.body.subtitle === "string" ? req.body.subtitle.trim() : "";
         if ("nextAction" in req.body)
           card.nextAction = typeof req.body.nextAction === "string" ? req.body.nextAction : "";
         if ("notes" in req.body)
