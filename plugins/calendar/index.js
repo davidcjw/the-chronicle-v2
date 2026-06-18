@@ -23,6 +23,7 @@ export function mapEvent(e, calendarId, calendarName, color) {
     end: e.end?.dateTime || e.end?.date,
     allDay: !e.start?.dateTime,
     location: e.location || null,
+    htmlLink: e.htmlLink || null,
     calendarId,
     calendarName,
     calendarColor: color,

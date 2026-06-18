@@ -31,7 +31,7 @@ function renderList(events, listEl) {
     .map((e) => {
       const { dayLabel, timeLabel } = formatDate(e.start);
       return `
-      <div class="event-item">
+      <a class="event-item" ${e.htmlLink ? `href="${e.htmlLink}" target="_blank" rel="noreferrer"` : ""}>
         <div class="event-meta">
           <span class="event-day">${dayLabel}</span>
           <span class="event-time">${timeLabel}</span>
@@ -40,7 +40,7 @@ function renderList(events, listEl) {
           <span class="event-cal-dot" style="background:${e.calendarColor}"></span>
           <span class="event-title">${e.title}</span>
         </div>
-      </div>`;
+      </a>`;
     })
     .join("");
 }
@@ -82,6 +82,10 @@ export default {
         .event-body { display:flex; align-items:center; gap:0.4rem; flex:1; min-width:0; }
         .event-cal-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
         .event-title { font-size:0.875rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        a.event-item { text-decoration:none; color:inherit; border-radius:6px; transition:background 0.12s; }
+        a.event-item[href] { cursor:pointer; }
+        a.event-item[href]:hover { background:var(--surface-2); }
+        a.event-item[href]:hover .event-title { color:var(--accent); }
       </style>
       <div class="cal-filters">
         ${calendars
