@@ -130,8 +130,14 @@ header {
   z-index: 10;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
-  padding: 1.25rem 2rem;
+  /* Extra top room clears the inset macOS traffic-light buttons (frameless window). */
+  padding: 2.1rem 2rem 1.25rem;
+  -webkit-app-region: drag; /* let the header move the frameless window */
 }
+
+/* Interactive header controls must stay clickable, not draggable. */
+.header-actions,
+.header-actions * { -webkit-app-region: no-drag; }
 
 .header-inner {
   max-width: 1280px;

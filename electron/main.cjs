@@ -51,6 +51,9 @@ function createWindow() {
     width: 1400,
     height: 900,
     title: "The Chronicle",
+    // Drop the native title bar; the traffic-light buttons inset over the content
+    // and the app header acts as the drag region (see -webkit-app-region in CSS).
+    titleBarStyle: "hiddenInset",
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
