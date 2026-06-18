@@ -57,14 +57,32 @@ export default {
       },
     },
     {
+      method: "GET",
+      path: "/api/reminders/lists",
+      handler: async (_req, res) => {
+        try {
+          const lists = await run("lists");
+          const filtered =
+            allowedLists.length > 0
+              ? lists.filter((l) => allowedLists.includes(l.title))
+              : lists;
+          res.json(filtered.map((l) => ({ ...l, isDefault: defaultList ? l.title === defaultList : l.isDefault })));
+        } catch (err) {
+          console.error("[reminders] GET lists error:", err.message);
+          res.status(500).json({ error: err.message });
+        }
+      },
+    },
+    {
       method: "POST",
       path: "/api/reminders",
       handler: async (req, res) => {
-        const { name, dueDate } = req.body;
+        const { name, dueDate, list } = req.body;
         if (!name?.trim()) return res.status(400).json({ error: "name required" });
+        const targetList = list?.trim() || defaultList;
         try {
           const args = ["add", "--name", name.trim()];
-          if (defaultList) args.push("--list", defaultList);
+          if (targetList) args.push("--list", targetList);
           if (dueDate) args.push("--due", dueDate);
           const reminder = await run(...args);
           res.json({ ...reminder, encodedId: encodeId(reminder.id) });

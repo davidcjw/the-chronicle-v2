@@ -111,11 +111,14 @@ export default {
         .rem-add-due::-webkit-calendar-picker-indicator{filter:invert(0.5);cursor:pointer}
         .rem-add-btn{background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent);border-radius:var(--radius-sm);padding:.35rem .7rem;font-size:.875rem;cursor:pointer}
         .rem-add-btn:hover{background:#818cf840}
+        .rem-add-list{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.35rem .5rem;color:var(--text-muted);font-size:.75rem;outline:none;cursor:pointer;flex:1;min-width:0}
+        .rem-add-list:focus{border-color:var(--accent);color:var(--text)}
       </style>
       <div class="rem-list"></div>
       <form class="rem-add-form">
         <input class="rem-add-input" placeholder="Add reminder…" autocomplete="off" />
         <button class="rem-add-btn" type="submit">+</button>
+        <select class="rem-add-list" title="Add to list"></select>
         <input class="rem-add-due" type="datetime-local" title="Due date &amp; time (optional)" />
       </form>`;
 
@@ -199,20 +202,45 @@ export default {
     const form = el.querySelector(".rem-add-form");
     const input = el.querySelector(".rem-add-input");
     const dueInput = el.querySelector(".rem-add-due");
+    const listSelect = el.querySelector(".rem-add-list");
+
+    // Populate the list picker. Remembers the last chosen list across reloads.
+    const STORAGE_KEY = "rem-add-list";
+    (async () => {
+      try {
+        const res = await fetch("/api/reminders/lists");
+        if (!res.ok) return;
+        const lists = await res.json();
+        if (!Array.isArray(lists) || !lists.length) return;
+        const saved = localStorage.getItem(STORAGE_KEY);
+        const fallback = lists.find((l) => l.isDefault)?.title ?? lists[0].title;
+        const selected = lists.some((l) => l.title === saved) ? saved : fallback;
+        listSelect.innerHTML = lists
+          .map((l) => `<option value="${escHtml(l.title)}"${l.title === selected ? " selected" : ""}>${escHtml(l.title)}</option>`)
+          .join("");
+      } catch {
+        /* leave picker empty; POST falls back to server default */
+      }
+    })();
+    listSelect.addEventListener("change", () => {
+      if (listSelect.value) localStorage.setItem(STORAGE_KEY, listSelect.value);
+    });
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const name = input.value.trim();
       if (!name) return;
       const dueDate = dueInput.value || null;
+      const list = listSelect.value || null;
       input.value = "";
       dueInput.value = "";
 
       const tempId = `temp-${Date.now()}`;
-      cached.unshift({ encodedId: tempId, name, list: "Reminders", dueDate, priority: 0 });
+      cached.unshift({ encodedId: tempId, name, list: list || "Reminders", dueDate, priority: 0 });
       repaint(listEl);
 
       const body = { name };
+      if (list) body.list = list;
       if (dueDate) body.dueDate = new Date(dueDate).toISOString().replace(/\.\d{3}Z$/, "Z");
 
       try {

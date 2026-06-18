@@ -69,6 +69,16 @@ let opts = parseOpts(Array(rawArgs.dropFirst()))
 
 switch command {
 
+case "lists":
+    let calendars = store.calendars(for: .reminder)
+    let def = store.defaultCalendarForNewReminders()
+    jsonOutput(calendars.map { cal in
+        [
+            "title": cal.title,
+            "isDefault": cal.calendarIdentifier == def?.calendarIdentifier,
+        ]
+    })
+
 case "list":
     let calendars = store.calendars(for: .reminder)
     let predicate = store.predicateForIncompleteReminders(
