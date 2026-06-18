@@ -24,7 +24,7 @@
         <p class="brand-sub"><span id="greeting"></span><span class="brand-sep"> · </span><span id="date-line"></span></p>
       </div>
       <div class="header-actions">
-        <select id="theme-select" title="Switch theme">
+        <select id="theme-select" title="Switch theme" hidden>
           <option value="dark">Dark</option>
           <option value="light">Light</option>
           <option value="paper">Paper</option>
@@ -34,9 +34,18 @@
           <option value="rose">Rosé Pine</option>
           <option value="gruvbox">Gruvbox</option>
         </select>
-        <button id="reset-btn">⊞ Reset layout</button>
-        <button id="refresh-btn">↻ Refresh</button>
-        <button id="settings-btn" title="Settings (⌘,)">⚙ Settings <kbd class="cmd-kbd">⌘,</kbd></button>
+        <button id="theme-btn" class="tb-btn" title="Theme" aria-label="Theme">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor" stroke="none"/></svg>
+        </button>
+        <button id="reset-btn" class="tb-btn" title="Reset layout" aria-label="Reset layout">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        </button>
+        <button id="refresh-btn" class="tb-btn" title="Refresh" aria-label="Refresh">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>
+        </button>
+        <button id="settings-btn" class="tb-btn" title="Settings (⌘,)" aria-label="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
       </div>
     </div>
   </header>
@@ -50,6 +59,7 @@
   <script type="module" src="settings.js"></script>
   <script type="module" src="onboarding.js"></script>
   <script type="module" src="command.js"></script>
+  <script type="module" src="theme-menu.js"></script>
   <script type="module" src="notifications.js"></script>
 </body>
 </html>

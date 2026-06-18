@@ -251,8 +251,10 @@ function injectHeaderButton() {
   if (!actions || document.getElementById("cmd-open-btn")) return;
   const btn = document.createElement("button");
   btn.id = "cmd-open-btn";
-  btn.title = "Quick add";
-  btn.innerHTML = `＋ Add <kbd class="cmd-kbd">⌘K</kbd>`;
+  btn.className = "tb-btn";
+  btn.title = "Quick add (⌘K)";
+  btn.setAttribute("aria-label", "Quick add");
+  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>`;
   btn.addEventListener("click", openPalette);
   actions.insertBefore(btn, actions.firstChild);
 }

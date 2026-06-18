@@ -145,6 +145,8 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
 }
 
 .brand-name {
@@ -154,6 +156,7 @@ header {
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--accent);
+  white-space: nowrap;
   display: flex;
   align-items: center;
   gap: 0.6rem;
@@ -181,47 +184,61 @@ header {
 
 .brand-sep { opacity: 0.4; }
 
-#refresh-btn,
-#settings-btn,
-#reset-btn,
-#cmd-open-btn {
-  background: var(--surface-2);
-  color: var(--text-dim);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 0.4rem 0.9rem;
-  font-size: 0.825rem;
-  cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
-}
-
-#cmd-open-btn,
-#settings-btn { display: inline-flex; align-items: center; gap: 0.4rem; }
-.cmd-kbd {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 0.68rem;
-  color: var(--text-muted);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 0.05rem 0.3rem;
-  line-height: 1.3;
-}
-
-#refresh-btn:hover,
-#settings-btn:hover,
-#reset-btn:hover,
-#cmd-open-btn:hover {
-  color: var(--text);
-  border-color: var(--accent);
-}
-
-/* ── Header actions ── */
+/* ── Header toolbar (uniform icon buttons) ── */
 .header-actions {
-  display: flex;
-  gap: 0.5rem;
+  display: inline-flex;
   align-items: center;
+  gap: 2px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 2px;
 }
+
+.tb-btn {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  color: var(--text-dim);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.12s, color 0.12s;
+}
+.tb-btn:hover { background: var(--bg); color: var(--text); }
+.tb-btn.active { background: var(--bg); color: var(--accent); }
+.tb-btn svg { width: 17px; height: 17px; }
+
+/* Theme dropdown menu */
+.tb-menu {
+  position: fixed;
+  z-index: 2200;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 4px;
+  min-width: 160px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.tb-menu-item {
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.tb-menu-item:hover { background: var(--surface-2); color: var(--text); }
+.tb-menu-item.active { color: var(--accent); font-weight: 600; }
 
 /* ── Confirm dialog ── */
 .confirm-overlay {
@@ -243,26 +260,6 @@ header {
 }
 .confirm-btn:hover { border-color: var(--accent); }
 .confirm-go { background: var(--accent); border-color: var(--accent); color: #06231a; font-weight: 600; }
-
-/* ── Theme picker ── */
-#theme-select {
-  background: var(--surface-2);
-  color: var(--text-dim);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 0.4rem 0.6rem;
-  font-size: 0.825rem;
-  cursor: pointer;
-  outline: none;
-  transition: border-color 0.15s, color 0.15s;
-}
-
-#theme-select:hover,
-#theme-select:focus {
-  border-color: var(--accent);
-  color: var(--text);
-}
-
 
 /* ── Grid ── */
 main {
