@@ -8,33 +8,50 @@ const maxTasks = cfg.maxTasks || 20;
 const excludeSet = new Set(excludeStatuses.map((s) => s.toLowerCase()));
 const propNames = { category: "Category", dueDate: "Due Date", ...cfg.properties };
 
-// Cached once at startup
-let statusOptions = [];
-let titlePropertyName = "Name";
+// Databases come from the config list; the legacy single NOTION_DATABASE_ID env
+// secret is honored as a fallback so existing single-database setups keep working.
+function databaseIds() {
+  const ids = (Array.isArray(cfg.databaseIds) ? cfg.databaseIds : []).map((s) => String(s).trim()).filter(Boolean);
+  const legacy = process.env.NOTION_DATABASE_ID;
+  if (legacy && !ids.includes(legacy)) ids.push(legacy);
+  return ids;
+}
 
-async function loadSchema() {
-  try {
-    const db = await notion.databases.retrieve({
-      database_id: process.env.NOTION_DATABASE_ID,
-    });
-    const titleEntry = Object.entries(db.properties).find(([, p]) => p.type === "title");
-    if (titleEntry) titlePropertyName = titleEntry[0];
+// Per-database schema cache: dbid -> { name, titleProp, statusOptions }
+const schemas = new Map();
 
-    const statusProp = Object.values(db.properties).find((p) => p.type === "status");
-    if (statusProp) {
-      statusOptions = statusProp.status.options.map((o) => ({ name: o.name, color: o.color }));
+async function loadDbSchema(dbid) {
+  const db = await notion.databases.retrieve({ database_id: dbid });
+  const name = db.title?.map((t) => t.plain_text).join("").trim() || "Tasks";
+  const titleEntry = Object.entries(db.properties).find(([, p]) => p.type === "title");
+  const titleProp = titleEntry ? titleEntry[0] : "Name";
+  const statusProp = Object.values(db.properties).find((p) => p.type === "status");
+  const statusOptions = statusProp
+    ? statusProp.status.options.map((o) => ({ name: o.name, color: o.color }))
+    : [];
+  const schema = { name, titleProp, statusOptions };
+  schemas.set(dbid, schema);
+  return schema;
+}
+
+const getSchema = (dbid) => schemas.get(dbid) || loadDbSchema(dbid);
+
+async function loadSchemas() {
+  for (const id of databaseIds()) {
+    try {
+      const s = await loadDbSchema(id);
+      console.log(`[notion] ${id} → "${s.name}" (${s.statusOptions.length} statuses)`);
+    } catch (err) {
+      console.error(`[notion] schema load failed for ${id}:`, err.message);
     }
-    console.log(`[notion] Schema: title="${titlePropertyName}", ${statusOptions.length} statuses`);
-  } catch (err) {
-    console.error("[notion] Failed to load schema:", err.message);
   }
 }
 
-export function mapPage(page) {
+export function mapPage(page, schema = { titleProp: "Name" }) {
   const props = page.properties;
 
   const title =
-    props[titlePropertyName]?.title?.[0]?.plain_text ||
+    props[schema.titleProp]?.title?.[0]?.plain_text ||
     props.Name?.title?.[0]?.plain_text ||
     props.Task?.title?.[0]?.plain_text ||
     "Untitled";
@@ -55,17 +72,32 @@ export function mapPage(page) {
   return { id: page.id, title, status, url: page.url, category, dueDate };
 }
 
+// List databases — the dashboard spawns one Tasks card per entry.
+async function listDatabases(_req, res) {
+  const out = [];
+  for (const id of databaseIds()) {
+    try {
+      const s = await getSchema(id);
+      out.push({ id, name: s.name });
+    } catch {
+      out.push({ id, name: "Tasks" }); // still show a card even if the schema can't load
+    }
+  }
+  res.json(out);
+}
+
 async function getTasks(req, res) {
   try {
+    const schema = await getSchema(req.params.dbid);
     const response = await notion.databases.query({
-      database_id: process.env.NOTION_DATABASE_ID,
+      database_id: req.params.dbid,
       sorts: [{ timestamp: "created_time", direction: "descending" }],
       page_size: maxTasks,
     });
     const tasks = response.results
-      .map(mapPage)
+      .map((p) => mapPage(p, schema))
       .filter((t) => !excludeSet.has(t.status.toLowerCase()));
-    res.json({ tasks, statusOptions });
+    res.json({ tasks, statusOptions: schema.statusOptions });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -74,31 +106,31 @@ async function getTasks(req, res) {
 async function createTask(req, res) {
   const { title, status } = req.body;
   if (!title?.trim()) return res.status(400).json({ error: "Title is required" });
-  const defaultStatus =
-    status ||
-    statusOptions.find((s) => !excludeSet.has(s.name.toLowerCase()))?.name;
   try {
+    const schema = await getSchema(req.params.dbid);
+    const defaultStatus =
+      status || schema.statusOptions.find((s) => !excludeSet.has(s.name.toLowerCase()))?.name;
     const page = await notion.pages.create({
-      parent: { database_id: process.env.NOTION_DATABASE_ID },
+      parent: { database_id: req.params.dbid },
       properties: {
-        [titlePropertyName]: { title: [{ text: { content: title.trim() } }] },
+        [schema.titleProp]: { title: [{ text: { content: title.trim() } }] },
         ...(defaultStatus ? { Status: { status: { name: defaultStatus } } } : {}),
       },
     });
-    res.json({ task: mapPage(page) });
+    res.json({ task: mapPage(page, schema) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 }
 
 async function updateTask(req, res) {
-  const { id } = req.params;
   const { status, title } = req.body;
   try {
+    const schema = await getSchema(req.params.dbid);
     const properties = {};
     if (status) properties.Status = { status: { name: status } };
-    if (title) properties[titlePropertyName] = { title: [{ text: { content: title } }] };
-    await notion.pages.update({ page_id: id, properties });
+    if (title) properties[schema.titleProp] = { title: [{ text: { content: title } }] };
+    await notion.pages.update({ page_id: req.params.id, properties });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -106,9 +138,8 @@ async function updateTask(req, res) {
 }
 
 async function archiveTask(req, res) {
-  const { id } = req.params;
   try {
-    await notion.pages.update({ page_id: id, archived: true });
+    await notion.pages.update({ page_id: req.params.id, archived: true });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -118,12 +149,13 @@ async function archiveTask(req, res) {
 export default {
   id: "notion",
   label: "Notion Tasks",
-  env: ["NOTION_TOKEN", "NOTION_DATABASE_ID"],
-  onLoad: loadSchema,
+  env: ["NOTION_TOKEN"],
+  onLoad: loadSchemas,
   routes: [
-    { method: "GET",    path: "/api/tasks",      handler: getTasks },
-    { method: "POST",   path: "/api/tasks",      handler: createTask },
-    { method: "PATCH",  path: "/api/tasks/:id",  handler: updateTask },
-    { method: "DELETE", path: "/api/tasks/:id",  handler: archiveTask },
+    { method: "GET", path: "/api/notion/databases", handler: listDatabases },
+    { method: "GET", path: "/api/notion/databases/:dbid/tasks", handler: getTasks },
+    { method: "POST", path: "/api/notion/databases/:dbid/tasks", handler: createTask },
+    { method: "PATCH", path: "/api/notion/databases/:dbid/tasks/:id", handler: updateTask },
+    { method: "DELETE", path: "/api/notion/databases/:dbid/tasks/:id", handler: archiveTask },
   ],
 };

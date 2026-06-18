@@ -21,6 +21,37 @@ window.addEventListener("chronicle:reload-widget", (e) => {
 // removed, which changes how many cards exist).
 window.addEventListener("chronicle:reload-dashboard", () => init(false));
 
+// Inline-editable card titles. A widget opts in with `editableTitle: true` and an
+// `onRename(newTitle)` callback; the title <h2> in its header becomes contenteditable.
+function commitTitleEdit(h2) {
+  const widget = activeWidgets.get(h2.dataset.rename);
+  if (!widget?.onRename) return;
+  const next = h2.textContent.trim();
+  if (!next || next === widget.title) {
+    h2.textContent = widget.title;
+    return;
+  }
+  widget.title = next;
+  widget.onRename(next);
+}
+document.addEventListener("focusout", (e) => {
+  const h2 = e.target.closest?.("[data-rename]");
+  if (h2) commitTitleEdit(h2);
+});
+document.addEventListener("keydown", (e) => {
+  const h2 = e.target.closest?.("[data-rename]");
+  if (h2 && e.key === "Enter") {
+    e.preventDefault();
+    h2.blur();
+  }
+});
+// Clicking into the title must not start a gridstack drag (the header is the handle).
+["pointerdown", "mousedown"].forEach((evt) =>
+  document.addEventListener(evt, (e) => {
+    if (e.target.closest?.("[data-rename]")) e.stopPropagation();
+  }, true)
+);
+
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -96,7 +127,7 @@ function cardHTML(widget) {
     <section class="card" id="card-${widget.id}">
       <div class="card-header" title="Drag to move">
         <span class="card-icon">${widget.icon}</span>
-        <h2>${esc(widget.title)}</h2>
+        <h2${widget.editableTitle ? ` contenteditable="true" spellcheck="false" data-rename="${widget.id}" title="Click to rename"` : ""}>${esc(widget.title)}</h2>
         <button class="card-collapse" data-id="${widget.id}" title="Collapse">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
             <polyline points="2,4 6,8 10,4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>

@@ -38,6 +38,8 @@ export async function instances() {
     size: "wide",
     w: 6, // half width so two boards sit side by side
     h: 8,
+    editableTitle: true,
+    onRename: (name) => api("PATCH", `/api/kanban/boards/${meta.id}`, { name }).catch(() => {}),
     load: () => api("GET", `/api/kanban/boards/${meta.id}`),
     render: (data, el) => renderBoard(el, data),
   }));
@@ -522,30 +524,11 @@ function makeColumn(st, col) {
 
 // --- board toolbar (rename / add / delete) ----------------------------------
 
+// Board actions. The board name is edited via the card header (editableTitle),
+// so this bar only holds add / delete.
 function makeBoardBar(st) {
   const bar = document.createElement("div");
   bar.className = "kb-bar";
-
-  const name = document.createElement("input");
-  name.className = "kb-bar-name";
-  name.value = st.board.name;
-  name.title = "Rename board";
-  name.addEventListener("change", async () => {
-    const v = name.value.trim();
-    if (!v || v === st.board.name) {
-      name.value = st.board.name;
-      return;
-    }
-    st.board.name = v;
-    try {
-      await api("PATCH", `/api/kanban/boards/${st.boardId}`, { name: v });
-      const headEl = document.getElementById(`card-kanban__${st.boardId}`);
-      const h2 = headEl?.querySelector(".card-header h2");
-      if (h2) h2.textContent = v;
-    } catch {
-      /* keep the typed value; it'll reconcile on next load */
-    }
-  });
 
   const addBtn = document.createElement("button");
   addBtn.className = "kb-bar-btn";
@@ -570,12 +553,11 @@ function makeBoardBar(st) {
       await api("DELETE", `/api/kanban/boards/${st.boardId}`);
       reloadDashboard();
     } catch (err) {
-      // e.g. last remaining board — surface briefly in the name field's title
-      name.title = err.message;
+      delBtn.title = err.message; // e.g. last remaining board
     }
   });
 
-  bar.append(name, addBtn, delBtn);
+  bar.append(addBtn, delBtn);
   return bar;
 }
 
@@ -584,9 +566,7 @@ function makeBoardBar(st) {
 function draw(st) {
   st.rootEl.innerHTML = `<style>
     .kb-wrap { display:flex; flex-direction:column; height:100%; gap:0.45rem; }
-    .kb-bar { display:flex; align-items:center; gap:0.35rem; flex:0 0 auto; }
-    .kb-bar-name { flex:1; min-width:0; background:var(--surface-2); border:1px solid transparent; color:var(--text); font-weight:600; font-size:0.82rem; padding:0.25rem 0.45rem; border-radius:6px; }
-    .kb-bar-name:focus { outline:none; border-color:var(--accent); }
+    .kb-bar { display:flex; align-items:center; justify-content:flex-end; gap:0.35rem; flex:0 0 auto; }
     .kb-bar-btn { background:transparent; border:1px solid var(--border); color:var(--text-muted); border-radius:6px; padding:0.25rem 0.5rem; font-size:0.74rem; cursor:pointer; white-space:nowrap; }
     .kb-bar-btn:hover { border-color:var(--accent); color:var(--text); }
     .kb-bar-btn:disabled { opacity:0.5; cursor:default; }

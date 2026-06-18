@@ -56,16 +56,21 @@ export const SETTINGS_SCHEMA = [
   {
     id: "notion",
     label: "Notion Tasks",
-    blurb: "Your task database, with full create / edit / complete.",
+    blurb: "Your Notion task databases — one card each, with full create / edit / complete.",
     secrets: [
       {
         key: "NOTION_TOKEN",
         label: "Notion Integration Token",
-        help: "notion.so/my-integrations → New integration. Then share your DB with it.",
+        help: "notion.so/my-integrations → New integration. Then share each DB with it.",
       },
-      { key: "NOTION_DATABASE_ID", label: "Tasks Database ID" },
     ],
     config: [
+      {
+        key: "databaseIds",
+        type: "list",
+        label: "Tasks Database IDs",
+        help: "One card per database. Share each with your integration, then add its ID.",
+      },
       { key: "excludeStatuses", type: "list", label: "Hide these statuses" },
       { key: "maxTasks", type: "number", label: "Max tasks" },
     ],

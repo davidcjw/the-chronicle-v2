@@ -32,6 +32,7 @@ export const DEFAULT_SETTINGS = {
     },
     calendar: { calendarIds: ["primary"] },
     notion: {
+      databaseIds: [],
       excludeStatuses: ["Done", "Complete"],
       maxTasks: 20,
       properties: { dueDate: "Due Date" },
