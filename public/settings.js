@@ -72,3 +72,11 @@ async function open() {
 }
 
 document.getElementById("settings-btn")?.addEventListener("click", open);
+
+// ⌘, / Ctrl+, — the standard "Preferences" shortcut.
+document.addEventListener("keydown", (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === ",") {
+    e.preventDefault();
+    if (!document.getElementById("set-overlay")) open();
+  }
+});

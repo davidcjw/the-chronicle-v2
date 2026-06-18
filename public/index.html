@@ -20,7 +20,7 @@
   <header>
     <div class="header-inner">
       <div class="header-brand">
-        <h1 class="brand-name"><span class="brand-deco">✦</span> The Chronicle <span class="brand-deco">✦</span></h1>
+        <h1 class="brand-name"><img class="brand-icon" src="favicon.svg" alt="" /><span class="brand-deco">✦</span> The Chronicle <span class="brand-deco">✦</span></h1>
         <p class="brand-sub"><span id="greeting"></span><span class="brand-sep"> · </span><span id="date-line"></span></p>
       </div>
       <div class="header-actions">
@@ -36,7 +36,7 @@
         </select>
         <button id="reset-btn">⊞ Reset layout</button>
         <button id="refresh-btn">↻ Refresh</button>
-        <button id="settings-btn" title="Settings">⚙ Settings</button>
+        <button id="settings-btn" title="Settings (⌘,)">⚙ Settings <kbd class="cmd-kbd">⌘,</kbd></button>
       </div>
     </div>
   </header>
@@ -49,5 +49,7 @@
   <script type="module" src="app.js"></script>
   <script type="module" src="settings.js"></script>
   <script type="module" src="onboarding.js"></script>
+  <script type="module" src="command.js"></script>
+  <script type="module" src="notifications.js"></script>
 </body>
 </html>

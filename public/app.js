@@ -291,9 +291,54 @@ document.addEventListener("click", (e) => {
 });
 
 refreshBtn.addEventListener("click", () => init(false));
-resetBtn.addEventListener("click", () => {
+resetBtn.addEventListener("click", async () => {
+  const ok = await confirmDialog({
+    title: "Reset layout?",
+    message:
+      "This restores every widget to its default position and size. Your data (cards, tasks, events) isn't affected.",
+    confirmLabel: "Reset layout",
+  });
+  if (!ok) return;
   clearLayout();
   init(true);
 });
+
+// Lightweight confirm dialog (no native confirm()). Resolves true/false.
+function confirmDialog({ title, message, confirmLabel = "Confirm" }) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "confirm-overlay";
+    const box = document.createElement("div");
+    box.className = "confirm-box";
+    box.innerHTML = `<h3>${esc(title)}</h3><p>${esc(message)}</p>`;
+    const foot = document.createElement("div");
+    foot.className = "confirm-foot";
+    const cancel = document.createElement("button");
+    cancel.className = "confirm-btn";
+    cancel.textContent = "Cancel";
+    const go = document.createElement("button");
+    go.className = "confirm-btn confirm-go";
+    go.textContent = confirmLabel;
+    foot.append(cancel, go);
+    box.append(foot);
+    overlay.append(box);
+
+    const close = (val) => {
+      overlay.remove();
+      document.removeEventListener("keydown", onKey);
+      resolve(val);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") close(false);
+      if (e.key === "Enter") close(true);
+    };
+    document.addEventListener("keydown", onKey);
+    overlay.addEventListener("click", (e) => e.target === overlay && close(false));
+    cancel.addEventListener("click", () => close(false));
+    go.addEventListener("click", () => close(true));
+    document.body.append(overlay);
+    go.focus();
+  });
+}
 
 init();

@@ -160,6 +160,13 @@ header {
   line-height: 1;
 }
 
+.brand-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 5px;
+  flex-shrink: 0;
+}
+
 .brand-deco {
   font-size: 0.65em;
   opacity: 0.6;
@@ -175,7 +182,9 @@ header {
 .brand-sep { opacity: 0.4; }
 
 #refresh-btn,
-#settings-btn {
+#settings-btn,
+#reset-btn,
+#cmd-open-btn {
   background: var(--surface-2);
   color: var(--text-dim);
   border: 1px solid var(--border);
@@ -186,8 +195,23 @@ header {
   transition: color 0.15s, border-color 0.15s;
 }
 
+#cmd-open-btn,
+#settings-btn { display: inline-flex; align-items: center; gap: 0.4rem; }
+.cmd-kbd {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.05rem 0.3rem;
+  line-height: 1.3;
+}
+
 #refresh-btn:hover,
-#settings-btn:hover {
+#settings-btn:hover,
+#reset-btn:hover,
+#cmd-open-btn:hover {
   color: var(--text);
   border-color: var(--accent);
 }
@@ -198,6 +222,27 @@ header {
   gap: 0.5rem;
   align-items: center;
 }
+
+/* ── Confirm dialog ── */
+.confirm-overlay {
+  position: fixed; inset: 0; z-index: 2100;
+  background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+}
+.confirm-box {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  width: min(400px, 92vw); padding: 1.2rem 1.3rem 1.3rem;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.confirm-box h3 { margin: 0 0 0.5rem; font-size: 1rem; color: var(--text); }
+.confirm-box p { margin: 0; font-size: 0.85rem; color: var(--text-dim); line-height: 1.45; }
+.confirm-foot { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.1rem; }
+.confirm-btn {
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+  border-radius: 7px; padding: 0.45rem 0.9rem; font-size: 0.82rem; cursor: pointer;
+}
+.confirm-btn:hover { border-color: var(--accent); }
+.confirm-go { background: var(--accent); border-color: var(--accent); color: #06231a; font-weight: 600; }
 
 /* ── Theme picker ── */
 #theme-select {
@@ -218,21 +263,6 @@ header {
   color: var(--text);
 }
 
-#reset-btn {
-  background: transparent;
-  color: var(--text-muted);
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  padding: 0.4rem 0.9rem;
-  font-size: 0.825rem;
-  cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
-}
-
-#reset-btn:hover {
-  color: var(--text-dim);
-  border-color: var(--border);
-}
 
 /* ── Grid ── */
 main {
