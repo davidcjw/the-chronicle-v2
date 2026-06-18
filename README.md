@@ -107,7 +107,7 @@ Apple Developer account ($99/yr) plus signing + notarization settings in the
 ## Onboarding notes (the honest part)
 
 A desktop app removes the install friction but **not** the account-setup friction:
-- **News** and **Apple Reminders** work with zero keys — the app shows something useful immediately.
+- **Dailies** (a daily checklist), **News**, and **Apple Reminders** work with zero keys — the app shows something useful immediately.
 - **Notion / GitLab** need a token pasted once.
 - **Google Calendar** still needs you to create an OAuth client in Google Cloud Console (the Settings field links you there). The redirect URI must be `http://localhost:3737/auth/google/callback`. After that, the "Connect Google" button handles the rest.
 
