@@ -6,6 +6,13 @@
 // connect: an OAuth-style button that opens `url`, enabled once `requires` secrets exist
 export const SETTINGS_SCHEMA = [
   {
+    id: "dailies",
+    label: "Dailies",
+    blurb: "A daily checklist — things you do every day. Once checked they hide until the next day. No account needed.",
+    secrets: [],
+    config: [],
+  },
+  {
     id: "news",
     label: "News",
     blurb: "Headlines from Google News + any custom RSS feeds. No account needed.",
