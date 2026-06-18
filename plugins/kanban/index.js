@@ -198,6 +198,10 @@ export default {
           card.nextAction = typeof req.body.nextAction === "string" ? req.body.nextAction : "";
         if ("notes" in req.body)
           card.notes = typeof req.body.notes === "string" ? req.body.notes : "";
+        if ("links" in req.body)
+          card.links = Array.isArray(req.body.links) ? req.body.links.filter(Boolean) : [];
+        if ("tags" in req.body)
+          card.tags = Array.isArray(req.body.tags) ? req.body.tags.filter(Boolean) : [];
         if ("nextActionDue" in req.body) card.nextActionDue = req.body.nextActionDue || null;
         if ("nextActionDueTime" in req.body) card.nextActionDueTime = req.body.nextActionDueTime || null;
         if ("calendar" in req.body) card.calendar = req.body.calendar || null;

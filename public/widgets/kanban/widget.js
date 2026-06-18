@@ -167,10 +167,11 @@ function makeCard(st, card) {
   row.append(title, details, del);
   el.append(row);
 
-  // Meta row: due badge, a 📅 mark when synced to Google, and a 📝 mark for notes.
+  // Meta row: due badge + small marks for calendar / notes / links.
   const info = dueInfo(card.nextActionDue);
   const hasNotes = !!(card.notes && card.notes.trim());
-  if (info || card.calendar?.eventId || hasNotes) {
+  const hasLinks = !!(card.links && card.links.length);
+  if (info || card.calendar?.eventId || hasNotes || hasLinks) {
     const meta = document.createElement("div");
     meta.className = "kb-card-meta";
     if (info) {
@@ -179,21 +180,30 @@ function makeCard(st, card) {
       badge.textContent = info.label;
       meta.append(badge);
     }
-    if (card.calendar?.eventId) {
-      const mark = document.createElement("span");
-      mark.className = "kb-card-mark";
-      mark.title = "On your calendar";
-      mark.textContent = "📅";
-      meta.append(mark);
-    }
-    if (hasNotes) {
-      const mark = document.createElement("span");
-      mark.className = "kb-card-mark";
-      mark.title = "Has notes";
-      mark.textContent = "📝";
-      meta.append(mark);
-    }
+    const mark = (emoji, title) => {
+      const m = document.createElement("span");
+      m.className = "kb-card-mark";
+      m.title = title;
+      m.textContent = emoji;
+      meta.append(m);
+    };
+    if (card.calendar?.eventId) mark("📅", "On your calendar");
+    if (hasNotes) mark("📝", "Has notes");
+    if (hasLinks) mark("🔗", "Has links");
     el.append(meta);
+  }
+
+  // Tags get their own badge row.
+  if (card.tags && card.tags.length) {
+    const tagRow = document.createElement("div");
+    tagRow.className = "kb-card-tags";
+    card.tags.forEach((t) => {
+      const b = document.createElement("span");
+      b.className = "kb-tag";
+      b.textContent = t;
+      tagRow.append(b);
+    });
+    el.append(tagRow);
   }
 
   el.addEventListener("dragstart", (e) => {
@@ -222,6 +232,91 @@ function hint(text) {
   p.className = "kbm-hint";
   p.textContent = text;
   return p;
+}
+
+function linkLabel(v) {
+  try {
+    return new URL(/^https?:\/\//i.test(v) ? v : `https://${v}`).hostname.replace(/^www\./, "");
+  } catch {
+    return v;
+  }
+}
+
+// A small chip editor used in the modal for tags and links. Returns the wrapper
+// element and a values() accessor. asLink renders each chip as a clickable link.
+function chipEditor(initial, { placeholder = "", asLink = false } = {}) {
+  const values = Array.isArray(initial) ? [...initial] : [];
+  const wrap = document.createElement("div");
+  wrap.className = "kbm-chips";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "kbm-chip-input";
+  input.placeholder = placeholder;
+
+  const draw = () => {
+    wrap.querySelectorAll(".kbm-chip").forEach((c) => c.remove());
+    values.forEach((v, i) => {
+      const chip = document.createElement("span");
+      chip.className = "kbm-chip";
+      let label;
+      if (asLink) {
+        label = document.createElement("a");
+        label.href = /^https?:\/\//i.test(v) ? v : `https://${v}`;
+        label.target = "_blank";
+        label.rel = "noreferrer";
+        label.className = "kbm-chip-a";
+        label.title = v;
+        label.textContent = linkLabel(v);
+      } else {
+        label = document.createElement("span");
+        label.textContent = v;
+      }
+      const x = document.createElement("button");
+      x.type = "button";
+      x.className = "kbm-chip-x";
+      x.textContent = "×";
+      x.addEventListener("click", () => {
+        values.splice(i, 1);
+        draw();
+      });
+      chip.append(label, x);
+      wrap.insertBefore(chip, input);
+    });
+  };
+
+  const add = (raw) => {
+    const t = raw.trim();
+    if (t && !values.includes(t)) {
+      values.push(t);
+      draw();
+    }
+  };
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || (e.key === "," && !asLink)) {
+      e.preventDefault();
+      add(input.value);
+      input.value = "";
+    } else if (e.key === "Backspace" && !input.value && values.length) {
+      values.pop();
+      draw();
+    }
+  });
+  input.addEventListener("blur", () => {
+    if (input.value.trim()) {
+      add(input.value);
+      input.value = "";
+    }
+  });
+  wrap.addEventListener("mousedown", (e) => {
+    if (e.target === wrap) {
+      e.preventDefault();
+      input.focus();
+    }
+  });
+
+  wrap.append(input);
+  draw();
+  return { wrap, values: () => values };
 }
 
 async function openCardModal(st, card) {
@@ -283,6 +378,9 @@ async function openCardModal(st, card) {
   notes.rows = 4;
   notes.value = card.notes || "";
 
+  const tagsEditor = chipEditor(card.tags, { placeholder: "Add a tag…" });
+  const linksEditor = chipEditor(card.links, { placeholder: "Paste a link, press Enter (optional)", asLink: true });
+
   const calSection = document.createElement("div");
   calSection.className = "kbm-cal";
 
@@ -305,6 +403,8 @@ async function openCardModal(st, card) {
     added,
     field("Next action", nextAction),
     dueRow,
+    field("Tags", tagsEditor.wrap),
+    field("Links", linksEditor.wrap),
     field("Notes", notes),
     calSection,
     status,
@@ -316,6 +416,8 @@ async function openCardModal(st, card) {
   const collect = () => ({
     nextAction: nextAction.value.trim(),
     notes: notes.value,
+    tags: tagsEditor.values(),
+    links: linksEditor.values(),
     nextActionDue: dueDate.value || null,
     nextActionDueTime: dueDate.value && dueTime.value ? dueTime.value : null,
   });
@@ -572,6 +674,8 @@ function draw(st) {
     .kb-due-soon { background:rgba(245,158,11,0.16); color:#f59e0b; }
     .kb-due-far { background:var(--surface-2); color:var(--text-muted); }
     .kb-card-mark { font-size:0.6rem; opacity:0.7; }
+    .kb-card-tags { display:flex; flex-wrap:wrap; gap:0.25rem; }
+    .kb-tag { font-size:0.64rem; font-weight:600; background:rgba(129,140,248,0.18); color:#a5b4fc; border-radius:999px; padding:0.05rem 0.45rem; }
     .kb-add { margin:0.4rem; background:transparent; border:1px dashed var(--border); color:var(--text-muted); border-radius:6px; padding:0.35rem 0.5rem; font-size:0.78rem; }
     .kb-add:focus { outline:none; border-color:var(--accent); color:var(--text); }
     .kb-addcol { flex:0 0 auto; align-self:flex-start; background:transparent; border:1px dashed var(--border); color:var(--text-muted); border-radius:var(--radius-sm); padding:0.5rem 0.7rem; cursor:pointer; font-size:0.8rem; white-space:nowrap; }
@@ -590,6 +694,14 @@ function draw(st) {
     .kbm-input:focus { outline:none; border-color:var(--accent); }
     .kbm-notes { resize:vertical; min-height:3.5rem; line-height:1.45; }
     .kbm-select { cursor:pointer; }
+    .kbm-chips { display:flex; flex-wrap:wrap; gap:0.3rem; align-items:center; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:0.3rem 0.35rem; min-height:2.1rem; cursor:text; }
+    .kbm-chips:focus-within { border-color:var(--accent); }
+    .kbm-chip { display:inline-flex; align-items:center; gap:0.2rem; background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size:0.74rem; padding:0.1rem 0.15rem 0.1rem 0.45rem; border-radius:999px; max-width:100%; }
+    .kbm-chip-a { color:var(--accent); text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:13rem; }
+    .kbm-chip-a:hover { text-decoration:underline; }
+    .kbm-chip-x { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.85rem; line-height:1; padding:0 0.15rem; }
+    .kbm-chip-x:hover { color:#f87171; }
+    .kbm-chip-input { flex:1; min-width:6rem; background:transparent; border:none; outline:none; color:var(--text); font-size:0.8rem; padding:0.15rem; font-family:inherit; }
     .kbm-due-row { display:flex; gap:0.6rem; }
     .kbm-cal { border-top:1px solid var(--border); margin-top:0.2rem; padding-top:0.8rem; }
     .kbm-cal-row { display:flex; gap:0.5rem; align-items:flex-end; }
