@@ -40,6 +40,19 @@ export async function instances() {
     h: 8,
     editableTitle: true,
     onRename: (name) => api("PATCH", `/api/kanban/boards/${meta.id}`, { name }).catch(() => {}),
+    headerActions: [
+      { id: "add", label: "＋ Board", title: "Add a new board" },
+      { id: "delete", label: "🗑", title: "Delete this board" },
+    ],
+    onHeaderAction: async (action) => {
+      try {
+        if (action === "add") await api("POST", "/api/kanban/boards", { name: "New board" });
+        if (action === "delete") await api("DELETE", `/api/kanban/boards/${meta.id}`);
+        reloadDashboard();
+      } catch {
+        /* e.g. deleting the last remaining board is rejected — leave the board as-is */
+      }
+    },
     load: () => api("GET", `/api/kanban/boards/${meta.id}`),
     render: (data, el) => renderBoard(el, data),
   }));
@@ -524,53 +537,11 @@ function makeColumn(st, col) {
 
 // --- board toolbar (rename / add / delete) ----------------------------------
 
-// Board actions. The board name is edited via the card header (editableTitle),
-// so this bar only holds add / delete.
-function makeBoardBar(st) {
-  const bar = document.createElement("div");
-  bar.className = "kb-bar";
-
-  const addBtn = document.createElement("button");
-  addBtn.className = "kb-bar-btn";
-  addBtn.textContent = "＋ Board";
-  addBtn.title = "Add a new board";
-  addBtn.addEventListener("click", async () => {
-    addBtn.disabled = true;
-    try {
-      await api("POST", "/api/kanban/boards", { name: "New board" });
-      reloadDashboard();
-    } catch {
-      addBtn.disabled = false;
-    }
-  });
-
-  const delBtn = document.createElement("button");
-  delBtn.className = "kb-bar-btn kb-bar-del";
-  delBtn.textContent = "🗑";
-  delBtn.title = "Delete this board";
-  delBtn.addEventListener("click", async () => {
-    try {
-      await api("DELETE", `/api/kanban/boards/${st.boardId}`);
-      reloadDashboard();
-    } catch (err) {
-      delBtn.title = err.message; // e.g. last remaining board
-    }
-  });
-
-  bar.append(addBtn, delBtn);
-  return bar;
-}
-
 // --- draw -------------------------------------------------------------------
 
 function draw(st) {
   st.rootEl.innerHTML = `<style>
-    .kb-wrap { display:flex; flex-direction:column; height:100%; gap:0.45rem; }
-    .kb-bar { display:flex; align-items:center; justify-content:flex-end; gap:0.35rem; flex:0 0 auto; }
-    .kb-bar-btn { background:transparent; border:1px solid var(--border); color:var(--text-muted); border-radius:6px; padding:0.25rem 0.5rem; font-size:0.74rem; cursor:pointer; white-space:nowrap; }
-    .kb-bar-btn:hover { border-color:var(--accent); color:var(--text); }
-    .kb-bar-btn:disabled { opacity:0.5; cursor:default; }
-    .kb-bar-del:hover { border-color:#f87171; color:#f87171; }
+    .kb-wrap { display:flex; flex-direction:column; height:100%; }
     .kb-board { display:flex; gap:0.6rem; overflow-x:auto; flex:1; align-items:flex-start; padding-bottom:4px; }
     .kb-col { background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); width:190px; flex:0 0 auto; display:flex; flex-direction:column; max-height:100%; }
     .kb-col-head { display:flex; align-items:center; gap:0.3rem; padding:0.45rem 0.5rem 0.35rem; }
@@ -639,7 +610,6 @@ function draw(st) {
 
   const wrap = document.createElement("div");
   wrap.className = "kb-wrap";
-  wrap.append(makeBoardBar(st));
 
   const boardEl = document.createElement("div");
   boardEl.className = "kb-board";

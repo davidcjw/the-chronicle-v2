@@ -128,6 +128,12 @@ function cardHTML(widget) {
       <div class="card-header" title="Drag to move">
         <span class="card-icon">${widget.icon}</span>
         <h2${widget.editableTitle ? ` contenteditable="true" spellcheck="false" data-rename="${widget.id}" title="Click to rename"` : ""}>${esc(widget.title)}</h2>
+        ${(widget.headerActions || [])
+          .map(
+            (a) =>
+              `<button class="card-haction" data-haction="${a.id}" data-id="${widget.id}" title="${esc(a.title || a.label)}">${esc(a.label)}</button>`
+          )
+          .join("")}
         <button class="card-collapse" data-id="${widget.id}" title="Collapse">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
             <polyline points="2,4 6,8 10,4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -276,6 +282,12 @@ applyTheme(localStorage.getItem("dashboard-theme") ?? "nord");
 document.addEventListener("click", (e) => {
   const btn = e.target.closest(".card-collapse");
   if (btn) toggleCollapse(btn.dataset.id);
+
+  const haction = e.target.closest(".card-haction");
+  if (haction) {
+    e.stopPropagation();
+    activeWidgets.get(haction.dataset.id)?.onHeaderAction?.(haction.dataset.haction);
+  }
 });
 
 refreshBtn.addEventListener("click", () => init(false));

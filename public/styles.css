@@ -512,6 +512,20 @@ main {
 
 .card-collapse:hover { color: var(--text); }
 
+.card-haction {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: color 0.15s, border-color 0.15s;
+}
+.card-haction:hover { color: var(--text); border-color: var(--accent); }
+
 .card-collapse svg { transition: transform 0.2s ease; }
 
 .is-collapsed .card-collapse svg { transform: rotate(-90deg); }
