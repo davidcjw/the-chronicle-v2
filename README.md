@@ -11,8 +11,23 @@ A one-click desktop version of [The Chronicle](../the-chronicle) personal dashbo
   <img src="docs/demo.gif" alt="The Chronicle dashboard demo" width="680">
 </p>
 
+## Install (Apple Silicon Mac)
+
+1. Go to the [**latest release**](https://github.com/davidcjw/the-chronicle-v2/releases/latest) and download **`The Chronicle-<version>-arm64.dmg`**.
+2. Open the `.dmg` and drag **The Chronicle** into your **Applications** folder.
+3. **First launch only** (the app is unsigned): **right-click** (or Control-click) the app → **Open** → click **Open** again in the dialog. macOS remembers this; every launch after is a normal double-click.
+
+> A plain double-click on the very first launch just shows a "can't be opened" dialog with no Open button — the right-click → Open step is what gets you past Gatekeeper. If it still blocks (newer macOS is stricter), clear the quarantine flag once:
+>
+> ```bash
+> xattr -dr com.apple.quarantine "/Applications/The Chronicle.app"
+> ```
+
+Apple Silicon (arm64) only for now. Prefer to run from source instead? See [Run it as the desktop app](#run-it-as-the-desktop-app).
+
 ## Table of Contents
 
+- [Install](#install-apple-silicon-mac)
 - [What's different from v1](#whats-different-from-v1)
 - [Architecture](#architecture)
 - [Run it (browser / dev)](#run-it-browser--dev--no-display-needed)
