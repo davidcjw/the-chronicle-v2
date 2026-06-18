@@ -1,6 +1,28 @@
 # The Chronicle v2
 
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)
+![Electron](https://img.shields.io/badge/built%20with-Electron-47848F.svg)
+
 A one-click desktop version of [The Chronicle](../the-chronicle) personal dashboard, built for **non-technical users**: no terminal, no editing config files, no `.env`. You pick the widgets you want and connect your accounts from an in-app **Settings** panel.
+
+<p align="center">
+  <img src="docs/demo.gif" alt="The Chronicle dashboard demo" width="680">
+</p>
+
+## Table of Contents
+
+- [What's different from v1](#whats-different-from-v1)
+- [Architecture](#architecture)
+- [Run it (browser / dev)](#run-it-browser--dev--no-display-needed)
+- [Run it as the desktop app](#run-it-as-the-desktop-app)
+- [Build a distributable .dmg](#build-a-distributable-dmg)
+- [Onboarding notes](#onboarding-notes-the-honest-part)
+- [Data location](#data-location)
+- [Contributing](#contributing)
+- [Code of Conduct](#code-of-conduct)
+- [License](#license)
+- [Acknowledgements](#acknowledgements)
 
 ## What's different from v1
 
@@ -52,7 +74,7 @@ npm start             # launches the Electron window
 ## Build a distributable `.dmg`
 
 ```bash
-npm run dist          # → dist/The Chronicle-0.1.0.dmg
+npm run dist          # → dist/The Chronicle-<version>-arm64.dmg
 ```
 
 The build is **unsigned** (`mac.identity: null` in `package.json`) — no Apple
@@ -97,3 +119,29 @@ A desktop app removes the install friction but **not** the account-setup frictio
 Secrets live only in that local file and are never sent anywhere except the
 respective service's own API. The Settings API never returns secret values back to
 the browser — only whether each one is set.
+
+## Contributing
+
+Contributions are welcome! Please open an issue first to discuss what you'd like to change.
+
+1. Fork the repo
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Commit your changes (`git commit -m 'feat: describe change'`)
+4. Push and open a pull request
+
+Please make sure the app still builds (`npm run dist`) before submitting a PR.
+
+## Code of Conduct
+
+This project follows the [Contributor Covenant v2.1](https://www.contributor-covenant.org/version/2/1/code_of_conduct/).
+By participating you agree to uphold a welcoming, harassment-free environment.
+
+## License
+
+Distributed under the MIT License. See [LICENSE](LICENSE) for details.
+
+## Acknowledgements
+
+- Built on top of [The Chronicle v1](../the-chronicle) — the widget plugins are reused as-is.
+- [Electron](https://www.electronjs.org/) for the desktop shell and [electron-builder](https://www.electron.build/) for packaging.
+- [gridstack.js](https://gridstackjs.com/) for the draggable, resizable dashboard layout.
