@@ -168,7 +168,8 @@ header {
 
 .brand-sep { opacity: 0.4; }
 
-#refresh-btn {
+#refresh-btn,
+#settings-btn {
   background: var(--surface-2);
   color: var(--text-dim);
   border: 1px solid var(--border);
@@ -179,7 +180,8 @@ header {
   transition: color 0.15s, border-color 0.15s;
 }
 
-#refresh-btn:hover {
+#refresh-btn:hover,
+#settings-btn:hover {
   color: var(--text);
   border-color: var(--accent);
 }
