@@ -1,6 +1,7 @@
 # The Chronicle v2
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Latest release](https://img.shields.io/github/v/release/davidcjw/the-chronicle-v2)
 ![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)
 ![Electron](https://img.shields.io/badge/built%20with-Electron-47848F.svg)
 
