@@ -1,6 +1,6 @@
 {
   "name": "the-chronicle-v2",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "The Chronicle — a personal dashboard, packaged as a one-click desktop app with an in-app Settings UI and guided account connections.",
   "author": "David <davidcjw@gmail.com>",
   "type": "module",
