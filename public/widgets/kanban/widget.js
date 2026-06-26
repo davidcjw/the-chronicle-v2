@@ -215,7 +215,29 @@ function makeCard(st, card) {
     if (nextAction) {
       const na = document.createElement("div");
       na.className = "kb-card-next";
-      na.textContent = nextAction;
+
+      const naText = document.createElement("span");
+      naText.className = "kb-card-next-text";
+      naText.textContent = nextAction;
+
+      // Quick "done" button: clear the next action (text + due) without opening
+      // the modal. Any linked calendar event is left alone — the meeting may have
+      // already happened and is worth keeping on the calendar.
+      const clear = document.createElement("button");
+      clear.className = "kb-card-next-clear";
+      clear.title = "Clear next action";
+      clear.textContent = "✓";
+      clear.addEventListener("click", (e) => {
+        e.stopPropagation();
+        patchCard(st, card, {
+          nextAction: "",
+          nextActionDue: null,
+          nextActionDueTime: null,
+        }).catch(() => {});
+        draw(st);
+      });
+
+      na.append(naText, clear);
       el.append(na);
     }
   }
@@ -707,7 +729,11 @@ function draw(st) {
     .kb-card:hover .kb-card-del { opacity:0.55; }
     .kb-card-del:hover { opacity:1; color:#f87171; }
     .kb-card-divider { height:1px; background:var(--border); margin:0.15rem 0; }
-    .kb-card-next { font-size:0.78rem; color:var(--text); line-height:1.35; word-break:break-word; }
+    .kb-card-next { font-size:0.78rem; color:var(--text); line-height:1.35; word-break:break-word; display:flex; align-items:flex-start; gap:0.35rem; }
+    .kb-card-next-text { flex:1; min-width:0; }
+    .kb-card-next-clear { background:none; border:none; color:var(--text-muted); cursor:pointer; opacity:0; flex-shrink:0; padding:0; line-height:1; font-size:0.8rem; }
+    .kb-card:hover .kb-card-next-clear { opacity:0.55; }
+    .kb-card-next-clear:hover { opacity:1; color:var(--accent); }
     .kb-card-meta { display:flex; align-items:center; gap:0.3rem; }
     .kb-due { font-size:0.66rem; font-weight:600; border-radius:999px; padding:0.05rem 0.4rem; }
     .kb-due-over { background:rgba(248,113,113,0.16); color:#f87171; }
