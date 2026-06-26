@@ -146,11 +146,13 @@ Contributions are welcome! Please open an issue first to discuss what you'd like
 4. Push and open a pull request
 
 Please make sure the app still builds (`npm run dist`) before submitting a PR.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide.
 
 ## Code of Conduct
 
 This project follows the [Contributor Covenant v2.1](https://www.contributor-covenant.org/version/2/1/code_of_conduct/).
 By participating you agree to uphold a welcoming, harassment-free environment.
+See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for details.
 
 ## License
 
