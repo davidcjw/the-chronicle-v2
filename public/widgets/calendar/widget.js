@@ -16,6 +16,10 @@ async function getWritableCals() {
   return writableCals;
 }
 
+// IDs of calendars the user can delete from — only these events get a delete
+// control. Populated once writable calendars are known; survives re-renders.
+let writableIds = new Set();
+
 function formatDate(iso) {
   const d = new Date(iso);
   const today = new Date();
@@ -45,17 +49,21 @@ function renderList(events, listEl) {
   listEl.innerHTML = visible
     .map((e) => {
       const { dayLabel, timeLabel } = formatDate(e.start);
+      const canDelete = writableIds.has(e.calendarId);
       return `
-      <a class="event-item" ${e.htmlLink ? `href="${e.htmlLink}" target="_blank" rel="noreferrer"` : ""}>
-        <div class="event-meta">
-          <span class="event-day">${dayLabel}</span>
-          <span class="event-time">${timeLabel}</span>
-        </div>
-        <div class="event-body">
-          <span class="event-cal-dot" style="background:${e.calendarColor}"></span>
-          <span class="event-title">${e.title}</span>
-        </div>
-      </a>`;
+      <div class="event-row" data-event-id="${e.id}" data-cal-id="${e.calendarId}">
+        <a class="event-item" ${e.htmlLink ? `href="${e.htmlLink}" target="_blank" rel="noreferrer"` : ""}>
+          <div class="event-meta">
+            <span class="event-day">${dayLabel}</span>
+            <span class="event-time">${timeLabel}</span>
+          </div>
+          <div class="event-body">
+            <span class="event-cal-dot" style="background:${e.calendarColor}"></span>
+            <span class="event-title">${e.title}</span>
+          </div>
+        </a>
+        ${canDelete ? `<button class="event-del" type="button" title="Delete event" aria-label="Delete event">×</button>` : ""}
+      </div>`;
     })
     .join("");
 }
@@ -111,6 +119,13 @@ export default {
         a.event-item[href] { cursor:pointer; }
         a.event-item[href]:hover { background:var(--surface-2); }
         a.event-item[href]:hover .event-title { color:var(--accent); }
+        .event-row { position:relative; }
+        .event-row a.event-item { padding-right:1.6rem; }
+        .event-del { position:absolute; top:50%; right:2px; transform:translateY(-50%); z-index:2; display:flex; align-items:center; justify-content:center; height:20px; min-width:20px; padding:0; border:none; border-radius:5px; background:transparent; color:var(--text-muted); font-size:1rem; line-height:1; cursor:pointer; opacity:0; transition:opacity 0.12s, background 0.12s, color 0.12s; }
+        .event-row:hover .event-del { opacity:0.65; }
+        .event-del:hover { opacity:1; background:color-mix(in srgb, #f87171 22%, transparent); color:#f87171; }
+        .event-del--confirm { opacity:1; padding:0 0.5rem; background:#f87171; color:#1a0808; font-size:0.68rem; font-weight:600; }
+        .event-del:disabled { opacity:0.6; cursor:default; }
         .cal-add { display:flex; flex-direction:column; gap:0.45rem; padding:0.6rem; margin-bottom:0.5rem; border:1px solid var(--border); border-radius:8px; background:var(--surface-2); }
         .cal-add[hidden] { display:none; }
         .cal-add-title { width:100%; box-sizing:border-box; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:0.85rem; padding:0.4rem 0.5rem; outline:none; }
@@ -153,9 +168,23 @@ export default {
       <div class="event-list"></div>`;
 
     this._el = el;
+    const events = data.events || [];
     const listEl = el.querySelector(".event-list");
-    renderList(data.events || [], listEl);
+    renderList(events, listEl);
     this._wireAddForm(el);
+    this._wireDelete(listEl);
+
+    // Reveal delete controls once we know which calendars are writable. If we
+    // already learned this on a prior load, the buttons render immediately above.
+    getWritableCals()
+      .then((cals) => {
+        const next = new Set(cals.map((c) => c.id));
+        if (next.size !== writableIds.size || [...next].some((id) => !writableIds.has(id))) {
+          writableIds = next;
+          renderList(events, listEl);
+        }
+      })
+      .catch(() => {});
 
     el.querySelectorAll(".cal-chip").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -244,6 +273,52 @@ export default {
         status.classList.add("err");
         status.textContent = err.message;
         saveBtn.disabled = false;
+      }
+    });
+  },
+
+  // Delegated handler for per-event delete buttons. First click arms a confirm
+  // state (auto-reverts after a few seconds); the second click deletes.
+  _wireDelete(listEl) {
+    listEl.addEventListener("click", async (e) => {
+      const btn = e.target.closest(".event-del");
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (btn.dataset.confirm !== "1") {
+        btn.dataset.confirm = "1";
+        btn.classList.add("event-del--confirm");
+        btn.textContent = "Delete?";
+        clearTimeout(btn._revert);
+        btn._revert = setTimeout(() => {
+          btn.dataset.confirm = "0";
+          btn.classList.remove("event-del--confirm");
+          btn.textContent = "×";
+        }, 3000);
+        return;
+      }
+
+      clearTimeout(btn._revert);
+      const row = btn.closest(".event-row");
+      const id = row.dataset.eventId;
+      const cid = row.dataset.calId;
+      btn.disabled = true;
+      btn.textContent = "…";
+      try {
+        const r = await fetch(
+          `/api/calendar/events/${encodeURIComponent(id)}?calendarId=${encodeURIComponent(cid)}`,
+          { method: "DELETE" }
+        );
+        if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error || r.statusText);
+        // Refresh just this widget so the deleted event drops out of the list.
+        window.dispatchEvent(new CustomEvent("chronicle:reload-widget", { detail: { id: "calendar" } }));
+      } catch (err) {
+        btn.disabled = false;
+        btn.dataset.confirm = "0";
+        btn.classList.remove("event-del--confirm");
+        btn.textContent = "×";
+        row.title = `Couldn't delete: ${err.message}`;
       }
     });
   },
