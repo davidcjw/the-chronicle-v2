@@ -12,6 +12,11 @@ function statusColor(options, name) {
   return NOTION_COLORS[opt?.color] || NOTION_COLORS.default;
 }
 
+// Escape remote-derived text before interpolating into innerHTML (DOM XSS guard).
+function escHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 export function formatDueDate(iso) {
   if (!iso) return null;
   const due = new Date(iso);
@@ -34,15 +39,15 @@ function buildTaskHTML(t, statusOptions) {
   const opts = statusOptions
     .map(
       (s) => `<button class="status-opt ${s.name === t.status ? "status-opt--active" : ""}"
-        data-task-id="${t.id}" data-status="${s.name}"
+        data-task-id="${escHtml(t.id)}" data-status="${escHtml(s.name)}"
         style="--s:${NOTION_COLORS[s.color] || NOTION_COLORS.default}">
-        <span class="s-dot"></span>${s.name}
+        <span class="s-dot"></span>${escHtml(s.name)}
       </button>`
     )
     .join("");
 
   const catChip = t.category
-    ? `<span class="task-cat" style="background:${NOTION_COLORS[t.category.color] || NOTION_COLORS.default}22;color:${NOTION_COLORS[t.category.color] || NOTION_COLORS.default}">${t.category.name}</span>`
+    ? `<span class="task-cat" style="background:${NOTION_COLORS[t.category.color] || NOTION_COLORS.default}22;color:${NOTION_COLORS[t.category.color] || NOTION_COLORS.default}">${escHtml(t.category.name)}</span>`
     : "";
 
   const due = formatDueDate(t.dueDate);
@@ -51,19 +56,19 @@ function buildTaskHTML(t, statusOptions) {
     : "";
 
   return `
-    <div class="task-row" data-task-id="${t.id}">
+    <div class="task-row" data-task-id="${escHtml(t.id)}">
       <div class="task-left">
-        <span class="task-title">${t.title}</span>
+        <span class="task-title">${escHtml(t.title)}</span>
         ${catChip || dueChip ? `<div class="task-meta-chips">${catChip}${dueChip}</div>` : ""}
       </div>
       <div class="task-actions">
         <div class="status-wrap">
           <button class="status-badge status-trigger"
-            data-task-id="${t.id}"
+            data-task-id="${escHtml(t.id)}"
             style="background:${color}22;color:${color}">
-            ${t.status}
+            ${escHtml(t.status)}
           </button>
-          <div class="status-menu hidden" data-task-id="${t.id}">${opts}</div>
+          <div class="status-menu hidden" data-task-id="${escHtml(t.id)}">${opts}</div>
         </div>
         <button class="task-archive" data-task-id="${t.id}" title="Archive">✕</button>
       </div>
@@ -74,7 +79,7 @@ function buildTaskHTML(t, statusOptions) {
 // is local to this call so multiple Tasks cards never clash.
 function renderTasks(el, data, base) {
   if (data.error) {
-    el.innerHTML = `<p class="widget-error">${data.error}</p>`;
+    el.innerHTML = `<p class="widget-error">${escHtml(data.error)}</p>`;
     return;
   }
 

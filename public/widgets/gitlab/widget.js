@@ -10,7 +10,23 @@ function threadBadge(count) {
   if (count === null) return "";
   if (count === 0)
     return `<span class="mr-badge mr-badge--clean" title="All threads resolved">✓ resolved</span>`;
-  return `<span class="mr-badge mr-badge--warn" title="${count} unresolved thread${count > 1 ? "s" : ""}">${count} unresolved</span>`;
+  const n = Number(count) || 0;
+  return `<span class="mr-badge mr-badge--warn" title="${n} unresolved thread${n > 1 ? "s" : ""}">${n} unresolved</span>`;
+}
+
+// Escape remote-derived text before interpolating into innerHTML (DOM XSS guard).
+function escHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// Only allow http(s) URLs in href; reject javascript:/data:/etc.
+function safeUrl(u) {
+  try {
+    const parsed = new URL(String(u), window.location.origin);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.href : "#";
+  } catch {
+    return "#";
+  }
 }
 
 export default {
@@ -26,7 +42,7 @@ export default {
 
   render(data, el) {
     if (data.error) {
-      el.innerHTML = `<p class="widget-error">${data.error}</p>`;
+      el.innerHTML = `<p class="widget-error">${escHtml(data.error)}</p>`;
       return;
     }
     if (!data.mrs?.length) {
@@ -53,14 +69,14 @@ export default {
       ${data.mrs
         .map(
           (mr) => `
-        <a class="mr-item" href="${mr.url}" target="_blank" rel="noopener">
+        <a class="mr-item" href="${escHtml(safeUrl(mr.url))}" target="_blank" rel="noopener">
           <div class="mr-top">
-            <span class="mr-title">${mr.title}</span>
+            <span class="mr-title">${escHtml(mr.title)}</span>
             ${mr.draft ? '<span class="mr-draft">Draft</span>' : ""}
           </div>
           <div class="mr-meta">
-            <span class="mr-project">${mr.project}</span>
-            <span class="mr-branch">→ ${mr.targetBranch}</span>
+            <span class="mr-project">${escHtml(mr.project)}</span>
+            <span class="mr-branch">→ ${escHtml(mr.targetBranch)}</span>
             ${threadBadge(mr.unresolvedThreads)}
             <span class="mr-age">${timeAgo(mr.createdAt)}</span>
           </div>

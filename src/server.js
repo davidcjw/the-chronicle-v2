@@ -64,7 +64,10 @@ async function loadPlugins() {
 app.get("/api/plugins", (req, res) => res.json(activePlugins));
 
 // Settings UI: current values + schema + per-plugin status. Secrets are returned
-// only as booleans ("is it set?") — never the raw values.
+// only as booleans ("is it set?") — never the raw values. This endpoint (and the
+// server generally) is UNAUTHENTICATED and exposes account/config state, so the
+// listener MUST stay bound to localhost only (see app.listen below). Do not expose
+// it on 0.0.0.0 / a public interface without adding auth first.
 app.get("/api/settings", (req, res) => {
   const s = loadSettings();
   const secretsSet = Object.fromEntries(
@@ -105,7 +108,10 @@ app.post("/api/settings", (req, res) => {
 
 await loadPlugins();
 
-app.listen(PORT, () => {
+// Bind to loopback only. This is a single-user desktop/dev dashboard whose
+// unauthenticated API (e.g. /api/settings) exposes account & config state; it
+// must never be reachable from other hosts on the network.
+app.listen(PORT, "127.0.0.1", () => {
   console.log(`\nThe Chronicle → http://localhost:${PORT}\n`);
   if (process.send) process.send({ type: "ready", port: PORT });
 });

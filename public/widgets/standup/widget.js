@@ -1,3 +1,8 @@
+// Escape remote-derived text before interpolating into innerHTML (DOM XSS guard).
+function escHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 export default {
   id: "standup",
   title: "Standup",
@@ -77,7 +82,7 @@ export default {
         <textarea
           class="standup-textarea"
           placeholder="What did you do yesterday?&#10;What will you do today?&#10;Any blockers?"
-        >${text}</textarea>
+        >${escHtml(text)}</textarea>
         <div class="standup-footer">
           <span class="standup-hint">One note per line → saves as bullets</span>
           <span class="standup-status"></span>
